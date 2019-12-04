@@ -2,8 +2,11 @@ dist: xenial
 
 language: c
 
+arch:
+  - amd64
+  - ppc64le
+
 compiler:
-  - clang
   - gcc
 
 env:
@@ -17,24 +20,12 @@ env:
     - CONFIGURE_ARGS=-fEHNPSOg GEN_HOST=1 LONG_BIT=64
     - CONFIGURE_ARGS=-bfEHNPSOg GEN_HOST=1 LONG_BIT=64
     - CONFIGURE_ARGS=-dfEHNPSOg GEN_HOST=1 LONG_BIT=64
-    - CONFIGURE_ARGS=-fHNPSOg GEN_HOST=0 LONG_BIT=64
-    - CONFIGURE_ARGS=-bfHNPSOg GEN_HOST=0 LONG_BIT=64
-    - CONFIGURE_ARGS=-dfHNPSOg GEN_HOST=0 LONG_BIT=64
-    - CONFIGURE_ARGS=-fEHNPSOg GEN_HOST=0 LONG_BIT=64
-    - CONFIGURE_ARGS=-bfEHNPSOg GEN_HOST=0 LONG_BIT=64
-    - CONFIGURE_ARGS=-dfEHNPSOg GEN_HOST=0 LONG_BIT=64
     - CONFIGURE_ARGS=-fHNPSOg GEN_HOST=1 LONG_BIT=32
     - CONFIGURE_ARGS=-bfHNPSOg GEN_HOST=1 LONG_BIT=32
     - CONFIGURE_ARGS=-dfHNPSOg GEN_HOST=1 LONG_BIT=32
     - CONFIGURE_ARGS=-fEHNPSOg GEN_HOST=1 LONG_BIT=32
     - CONFIGURE_ARGS=-bfEHNPSOg GEN_HOST=1 LONG_BIT=32
     - CONFIGURE_ARGS=-dfEHNPSOg GEN_HOST=1 LONG_BIT=32
-    - CONFIGURE_ARGS=-fHNPSOg GEN_HOST=0 LONG_BIT=32
-    - CONFIGURE_ARGS=-bfHNPSOg GEN_HOST=0 LONG_BIT=32
-    - CONFIGURE_ARGS=-dfHNPSOg GEN_HOST=0 LONG_BIT=32
-    - CONFIGURE_ARGS=-EfHNPSOg GEN_HOST=0 LONG_BIT=32
-    - CONFIGURE_ARGS=-bfEHNPSOg GEN_HOST=0 LONG_BIT=32
-    - CONFIGURE_ARGS=-dfEHNPSOg GEN_HOST=0 LONG_BIT=32
 
 before_install:
   - sudo apt-get install -y dc
@@ -46,4 +37,5 @@ before_script:
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 
-script: if [ "${COVERITY_SCAN_BRANCH}" != 1 ]; then ./configure.sh "$CONFIGURE_ARGS" && make -j4 && make -j4 test ; fi
+script:
+  - if [ "${COVERITY_SCAN_BRANCH}" != 1 ]; then ./configure.sh "$CONFIGURE_ARGS" && make -j4 && make -j4 test ; fi
