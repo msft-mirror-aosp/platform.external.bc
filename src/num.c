@@ -272,7 +272,7 @@ ssize_t bc_num_cmp(const BcNum *a, const BcNum *b) {
 	a_int -= b_int;
 	a_max = (a->rdx > b->rdx);
 
-	if (a_int) return (ssize_t) a_int;
+	if (a_int) return neg ? -((ssize_t) a_int) : (ssize_t) a_int;
 
 	if (a_max) {
 		min = b->rdx;
@@ -660,23 +660,23 @@ static BcStatus bc_num_as(BcNum *a, BcNum *b, BcNum *restrict c, size_t sub) {
 	min_len = BC_MIN(len_l, len_r);
 
 	if (do_sub) {
-		for (i = 0; BC_NO_SIG && i < min_len; i++)
+		for (i = 0; BC_NO_SIG && i < min_len; ++i)
 			ptr_c[i] = bc_num_subDigits(ptr_l[i], ptr_r[i], &carry);
-		for (; BC_NO_SIG && i < len_l; i++)
+		for (; BC_NO_SIG && i < len_l; ++i)
 			ptr_c[i] = bc_num_subDigits(ptr_l[i], 0, &carry);
-		for (; BC_NO_SIG && i < len_r; i++)
+		for (; BC_NO_SIG && i < len_r; ++i)
 			ptr_c[i] = bc_num_subDigits(0, ptr_r[i], &carry);
-		for (; BC_NO_SIG && i < max_len - diff; i++)
+		for (; BC_NO_SIG && i < max_len - diff; ++i)
 			ptr_c[i] = bc_num_subDigits(0, 0, &carry);
 	}
 	else {
-		for (i = 0; BC_NO_SIG && i < min_len; i++)
+		for (i = 0; BC_NO_SIG && i < min_len; ++i)
 			ptr_c[i] = bc_num_addDigits(ptr_l[i], ptr_r[i], &carry);
-		for (; BC_NO_SIG && i < len_l; i++)
+		for (; BC_NO_SIG && i < len_l; ++i)
 			ptr_c[i] = bc_num_addDigits(ptr_l[i], 0, &carry);
-		for (; BC_NO_SIG && i < len_r; i++)
+		for (; BC_NO_SIG && i < len_r; ++i)
 			ptr_c[i] = bc_num_addDigits(0, ptr_r[i], &carry);
-		for (; BC_NO_SIG && i < max_len - diff; i++)
+		for (; BC_NO_SIG && i < max_len - diff; ++i)
 			ptr_c[i] = bc_num_addDigits(0, 0, &carry);
 	}
 
