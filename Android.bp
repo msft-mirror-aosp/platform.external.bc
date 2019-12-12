@@ -61,3 +61,17 @@ cc_binary_host {
   name: "gavinhoward-bc",
   defaults: ["bc-defaults"],
 }
+
+sh_test {
+  name: "bc-tests",
+  src: "run-bc-tests-on-android.sh",
+  filename: "run-bc-tests-on-android.sh",
+  test_suites: ["general-tests"],
+  host_supported: true,
+  device_supported: false,
+  test_config: "bc-tests.xml",
+  data: [
+    "functions.sh",
+    "tests/**/*",
+  ],
+}
