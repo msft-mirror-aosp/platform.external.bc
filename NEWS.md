@@ -1,5 +1,60 @@
 # News
 
+## 2.6.0
+
+This release is a production release ***with no bugfixes***. If you do not want
+to upgrade, you don't have to.
+
+This release adds one function to the [extended math library][16]: `p(x, y)`,
+which calculates `x` to the power of `y`, whether or not `y` is an integer. (The
+`^` can only accept integer powers.)
+
+This release also includes a couple of small tweaks to the [extended math
+library][16], mostly to fix returning numbers with too high of `scale`.
+
+## 2.5.3
+
+This release is a production release which addresses inconsistencies in the
+Portuguese locales. No `bc` code was changed.
+
+The issues were that the ISO files used different naming, and also that the
+files that should have been symlinks were not. I did not catch that because
+GitHub rendered them the exact same way.
+
+## 2.5.2
+
+This release is a production release.
+
+No code was changed, but the build system was changed to allow `CFLAGS` to be
+given to `CC`, like this:
+
+```
+CC="gcc -O3 -march=native" ./configure.sh
+```
+
+If this happens, the flags are automatically put into `CFLAGS`, and the compiler
+is set appropriately. In the example above this means that `CC` will be "gcc"
+and `CFLAGS` will be "-O3 -march=native".
+
+This behavior was added to conform to GNU autotools practices.
+
+## 2.5.1
+
+This is a production release which addresses portability concerns discovered
+in the `bc` build system. No `bc` code was changed.
+
+* Support for Solaris SPARC and AIX were added.
+* Minor documentations edits were performed.
+* An option for `configure.sh` was added to disable long options if
+  `getopt_long()` is missing.
+
+## 2.5.0
+
+This is a production release with new translations. No code changed.
+
+The translations were contributed by [bugcrazy][15], and they are for
+Portuguese, both Portugal and Brazil locales.
+
 ## 2.4.0
 
 This is a production release primarily aimed at improving `dc`.
@@ -7,8 +62,8 @@ This is a production release primarily aimed at improving `dc`.
 * A couple of copy and paste errors in the [`dc` manual][10] were fixed.
 * `dc` startup was optimized by making sure it didn't have to set up `bc`-only
   things.
-* The `bc` `&&` and `||` were made available to `dc` through the `M` and `m`
-  commands, respectively.
+* The `bc` `&&` and `||` operators were made available to `dc` through the `M`
+  and `m` commands, respectively.
 * `dc` macros were changed to be tail call-optimized.
 
 The last item, tail call optimization, means that if the last thing in a macro
@@ -29,7 +84,10 @@ upgrade.
 
 This is a production release. It fixes a bug that caused `-1000000000 < -1` to
 return `0`. This only happened with negative numbers and only if the value on
-the left was more negative by a certain amount.
+the left was more negative by a certain amount. That said, this bug *is* a bad
+bug, and needs to be fixed.
+
+**ALL USERS SHOULD UPDATE `bc`**.
 
 ## 2.3.0
 
@@ -491,3 +549,5 @@ not thoroughly tested.
 [12]: ./locale_install.sh
 [13]: ./manuals/build.md
 [14]: https://github.com/stesser
+[15]: https://github.com/bugcrazy
+[16]: ./manuals/bc.1.ronn#extended-library
