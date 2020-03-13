@@ -86,11 +86,20 @@ sections.
 C compiler for the target system. `CC` must be compatible with POSIX `c99`
 behavior and options.
 
+If there is a space in the basename of the compiler, the items after the first
+space are assumed to be compiler flags, and in that case, the flags are
+automatically moved into CFLAGS.
+
 Defaults to `c99`.
 
 ### `HOSTCC` or `HOST_CC`
 
-C compiler for the host system, used only in [cross compiling][6].
+C compiler for the host system, used only in [cross compiling][6]. Must be
+compatible with POSIX `c99` behavior and options.
+
+If there is a space in the basename of the compiler, the items after the first
+space are assumed to be compiler flags, and in that case, the flags are
+automatically moved into HOSTCFLAGS.
 
 Defaults to `$CC`.
 
@@ -366,6 +375,22 @@ can be disabled permanently in the build by passing the `-P` flag or the
 ```
 ./configure.sh -P
 ./configure.sh --disable-prompt
+```
+
+Both commands are equivalent.
+
+### Long Options
+
+By default, `bc` and `dc` support long options like `--mathlib` and
+`--interactive`. However, support for these options requires `getopt_long()`
+which is not in the POSIX standard. For those platforms that do *not* have
+`getopt_long()` it will be disabled automatically, or if you wish to disable
+them regardless, you can pass the `-L` flag or the `--disable-long-options`
+option to `configure.sh`, as follows:
+
+```
+./configure.sh -L
+./configure.sh --disable-long-options
 ```
 
 Both commands are equivalent.

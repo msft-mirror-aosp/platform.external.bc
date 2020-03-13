@@ -150,6 +150,8 @@ The following are the options that bc(1) accepts.
 
     This is a **non-portable extension**.
 
+**Note**: long options are only accepted if bc(1) is built with them enabled.
+
 STDOUT
 ------
 
@@ -809,6 +811,12 @@ However, the extended library is ***not*** loaded when the `-s`/`--standard` or
 by the [standard][1].
 
 The extended library is a **non-portable extension**.
+
+  * `p(x, y)`:
+    Calculates `x` to the power of `y`, even if `y` is not an integer, and
+    returns the result to the current `scale`.
+
+    This is a [transcendental function][5].
 
   * `r(x, p)`:
     Returns `x` rounded to `p` decimal places according to the rounding mode
