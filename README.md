@@ -4,6 +4,9 @@
 [![codecov][15]][16]
 [![Coverity Scan Build Status][17]][18]
 
+***WARNING: This project has moved to [https://git.yzena.com/][20] for [these
+reasons][21].***
+
 This is an implementation of the [POSIX `bc` calculator][12] that implements
 [GNU `bc`][1] extensions, as well as the period (`.`) extension for the BSD
 flavor of `bc`.
@@ -270,6 +273,7 @@ Files:
 	.gitignore           The git ignore file (maintainer use only).
 	.travis.yml          The Travis CI file (maintainer use only).
 	codecov.yml          The Codecov file (maintainer use only).
+	configure            A symlink to configure.sh to make packaging easier.
 	configure.sh         The configure script.
 	functions.sh         A script with functions used by other scripts.
 	install.sh           Install script.
@@ -279,6 +283,7 @@ Files:
 	locale_install.sh    A script to install locales, if desired.
 	locale_uninstall.sh  A script to uninstall locales.
 	Makefile.in          The Makefile template.
+	manpage.sh           Script to generate man pages from ronn files.
 	NOTICE.md            List of contributors and copyright owners.
 	RELEASE.md           A checklist for making a release (maintainer use only).
 	release.sh           A script to test for release (maintainer use only).
@@ -312,3 +317,5 @@ Folders:
 [17]: https://img.shields.io/coverity/scan/16609.svg
 [18]: https://scan.coverity.com/projects/gavinhoward-bc
 [19]: ./manuals/benchmarks.md
+[20]: https://git.yzena.com/gavin/bc
+[21]: https://gavinhoward.com/2020/04/i-am-moving-away-from-github/
