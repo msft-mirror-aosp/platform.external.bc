@@ -1,13 +1,22 @@
 # News
 
+## 2.6.1
+
+This is a production release with a bug fix for FreeBSD.
+
+The bug was that when `bc` was built without long options, it would give a fatal
+error on every run. This was caused by a mishandling of `optind`.
+
 ## 2.6.0
 
 This release is a production release ***with no bugfixes***. If you do not want
 to upgrade, you don't have to.
 
+No source code changed; the only thing that changed was `lib2.bc`.
+
 This release adds one function to the [extended math library][16]: `p(x, y)`,
 which calculates `x` to the power of `y`, whether or not `y` is an integer. (The
-`^` can only accept integer powers.)
+`^` operator can only accept integer powers.)
 
 This release also includes a couple of small tweaks to the [extended math
 library][16], mostly to fix returning numbers with too high of `scale`.
