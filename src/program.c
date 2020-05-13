@@ -38,6 +38,7 @@
 #include <string.h>
 
 #include <signal.h>
+#include <time.h>
 
 #include <read.h>
 #include <parse.h>
@@ -111,9 +112,15 @@ static size_t bc_program_index(const char *restrict code, size_t *restrict bgn)
 }
 
 static void bc_program_prepGlobals(BcProgram *p) {
+
 	size_t i;
+
 	for (i = 0; i < BC_PROG_GLOBALS_LEN; ++i)
 		bc_vec_push(p->globals_v + i, p->globals + i);
+
+#if BC_ENABLE_EXTRA_MATH
+	bc_rand_push(&p->rng);
+#endif // BC_ENABLE_EXTRA_MATH
 }
 
 #if BC_ENABLED
@@ -208,6 +215,9 @@ static BcStatus bc_program_num(BcProgram *p, BcResult *r, BcNum **num) {
 		case BC_RESULT_IBASE:
 		case BC_RESULT_SCALE:
 		case BC_RESULT_OBASE:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_RESULT_SEED:
+#endif // BC_ENABLE_EXTRA_MATH
 		{
 			n = &r->d.n;
 			break;
@@ -487,6 +497,21 @@ io_err:
 	vm->file = file;
 	return s;
 }
+
+#if BC_ENABLE_EXTRA_MATH
+static void bc_program_rand(BcProgram *p) {
+
+	BcRand rand;
+	BcResult res;
+
+	rand = bc_rand_int(&p->rng);
+
+	res.t = BC_RESULT_TEMP;
+	bc_num_createFromBigdig(&res.d.n, rand);
+
+	bc_vec_push(&p->results, &res);
+}
+#endif // BC_ENABLE_EXTRA_MATH
 
 static void bc_program_printChars(const char *str) {
 	const char *nl;
@@ -895,6 +920,12 @@ static BcStatus bc_program_assign(BcProgram *p, uchar inst) {
 		*ptr = val;
 		*ptr_t = val;
 	}
+#if BC_ENABLE_EXTRA_MATH
+	else if (left->t == BC_RESULT_SEED) {
+		s = bc_num_rng(l, &p->rng);
+		if (BC_ERR(s)) return s;
+	}
+#endif // BC_ENABLE_EXTRA_MATH
 
 	if (use_val) {
 		bc_num_createCopy(&res.d.n, l);
@@ -1141,6 +1172,10 @@ static BcStatus bc_program_return(BcProgram *p, uchar inst) {
 			bc_vec_pop(v);
 			p->globals[i] = BC_PROG_GLOBAL(v);
 		}
+
+#if BC_ENABLE_EXTRA_MATH
+		bc_rand_pop(&p->rng);
+#endif // BC_ENABLE_EXTRA_MATH
 	}
 
 	bc_vec_push(&p->results, &res);
@@ -1158,7 +1193,11 @@ static BcStatus bc_program_builtin(BcProgram *p, uchar inst) {
 	BcNum *num, *resn = &res.d.n;
 	bool len = (inst == BC_INST_LENGTH);
 
+#if BC_ENABLE_EXTRA_MATH
+	assert(inst >= BC_INST_LENGTH && inst <= BC_INST_IRAND);
+#else // BC_ENABLE_EXTRA_MATH
 	assert(inst >= BC_INST_LENGTH && inst <= BC_INST_ABS);
+#endif // BC_ENABLE_EXTRA_MATH
 
 	s = bc_program_operand(p, &opd, &num, 0);
 	if (BC_ERR(s)) return s;
@@ -1180,14 +1219,32 @@ static BcStatus bc_program_builtin(BcProgram *p, uchar inst) {
 		bc_num_createCopy(resn, num);
 		resn->neg = false;
 	}
+#if BC_ENABLE_EXTRA_MATH
+	else if (inst == BC_INST_IRAND) {
+		bc_num_init(resn, num->len - num->rdx);
+		s = bc_num_irand(num, resn, &p->rng);
+		if (BC_ERR(s)) {
+			bc_num_free(resn);
+			return s;
+		}
+	}
+#endif // BC_ENABLE_EXTRA_MATH
 	else {
 
 		BcBigDig val = 0;
 
 		if (len) {
 #if BC_ENABLED
-			if (BC_IS_BC && opd->t == BC_RESULT_ARRAY)
-				val = (BcBigDig) ((BcVec*) num)->len;
+			if (BC_IS_BC && opd->t == BC_RESULT_ARRAY) {
+
+				BcVec *v = (BcVec*) num;
+
+				if (v->size == sizeof(uchar)) v = bc_program_dereference(p, v);
+
+				assert(v->size == sizeof(BcNum));
+
+				val = (BcBigDig) v->len;
+			}
 			else
 #endif // BC_ENABLED
 			{
@@ -1324,8 +1381,7 @@ static BcStatus bc_program_asciify(BcProgram *p) {
 		// This is also guaranteed to not error because num is in the range
 		// [0, UCHAR_MAX], which is definitely in range for a BcBigDig. And
 		// it is not negative.
-		s = bc_num_bigdig(&num, &val);
-		assert(!s || s == BC_STATUS_SIGNAL);
+		bc_num_bigdig2(&num, &val);
 #if BC_ENABLE_SIGNALS
 		if (BC_ERROR_SIGNAL_ONLY(s)) goto num_err;
 #endif // BC_ENABLE_SIGNALS
@@ -1557,6 +1613,19 @@ static void bc_program_pushGlobal(BcProgram *p, uchar inst) {
 	bc_program_pushBigDig(p, p->globals[inst - BC_INST_IBASE], t);
 }
 
+#if BC_ENABLE_EXTRA_MATH
+static void bc_program_pushSeed(BcProgram *p) {
+
+	BcResult res;
+
+	res.t = BC_RESULT_SEED;
+
+	bc_num_createFromRNG(&res.d.n, &p->rng);
+
+	bc_vec_push(&p->results, &res);
+}
+#endif // BC_ENABLE_EXTRA_MATH
+
 #ifndef NDEBUG
 void bc_program_free(BcProgram *p) {
 
@@ -1582,6 +1651,10 @@ void bc_program_free(BcProgram *p) {
 		bc_num_free(&p->last);
 	}
 #endif // BC_ENABLED
+
+#if BC_ENABLE_EXTRA_MATH
+	bc_rand_free(&p->rng);
+#endif // BC_ENABLE_EXTRA_MATH
 
 #if DC_ENABLED
 	if (!BC_IS_BC) bc_vec_free(&p->tail_calls);
@@ -1619,6 +1692,11 @@ void bc_program_init(BcProgram *p) {
 		bc_num_bigdig2num(&p->strmb, p->strm);
 	}
 #endif // DC_ENABLED
+
+#if BC_ENABLE_EXTRA_MATH
+	srand((unsigned int) time(NULL));
+	bc_rand_init(&p->rng);
+#endif // BC_ENABLE_EXTRA_MATH
 
 	bc_num_setup(&p->one, p->one_num, BC_PROG_ONE_CAP);
 	bc_num_one(&p->one);
@@ -1818,9 +1896,20 @@ BcStatus bc_program_exec(BcProgram *p) {
 				break;
 			}
 
+#if BC_ENABLE_EXTRA_MATH
+			case BC_INST_RAND:
+			{
+				bc_program_rand(p);
+				break;
+			}
+#endif // BC_ENABLE_EXTRA_MATH
+
 			case BC_INST_MAXIBASE:
 			case BC_INST_MAXOBASE:
 			case BC_INST_MAXSCALE:
+#if BC_ENABLE_EXTRA_MATH
+			case BC_INST_MAXRAND:
+#endif // BC_ENABLE_EXTRA_MATH
 			{
 				BcBigDig dig = vm->maxes[inst - BC_INST_MAXIBASE];
 				bc_program_pushBigDig(p, dig, BC_RESULT_TEMP);
@@ -1850,10 +1939,21 @@ BcStatus bc_program_exec(BcProgram *p) {
 				break;
 			}
 
+#if BC_ENABLE_EXTRA_MATH
+			case BC_INST_SEED:
+			{
+				bc_program_pushSeed(p);
+				break;
+			}
+#endif // BC_ENABLE_EXTRA_MATH
+
 			case BC_INST_LENGTH:
 			case BC_INST_SCALE_FUNC:
 			case BC_INST_SQRT:
 			case BC_INST_ABS:
+#if BC_ENABLE_EXTRA_MATH
+			case BC_INST_IRAND:
+#endif // BC_ENABLE_EXTRA_MATH
 			{
 				s = bc_program_builtin(p, inst);
 				break;
