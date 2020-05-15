@@ -45,6 +45,7 @@
 #include <sys/types.h>
 
 #include <status.h>
+#include <vector.h>
 
 #ifndef BC_ENABLE_EXTRA_MATH
 #define BC_ENABLE_EXTRA_MATH (1)
@@ -71,9 +72,9 @@ typedef unsigned long ulong;
 #if BC_LONG_BIT >= 64
 
 typedef int_least32_t BcDig;
-typedef uint_fast64_t BcBigDig;
+typedef uint64_t BcBigDig;
 
-#define BC_NUM_BIGDIG_MAX (UINT_FAST64_MAX)
+#define BC_NUM_BIGDIG_MAX ((BcBigDig) UINT64_MAX)
 
 #define BC_BASE_DIGS (9)
 #define BC_BASE_POW (1000000000)
@@ -84,9 +85,9 @@ typedef uint_fast64_t BcBigDig;
 #elif BC_LONG_BIT >= 32
 
 typedef int_least16_t BcDig;
-typedef uint_fast32_t BcBigDig;
+typedef uint32_t BcBigDig;
 
-#define BC_NUM_BIGDIG_MAX (UINT_FAST32_MAX)
+#define BC_NUM_BIGDIG_MAX ((BcBigDig) UINT32_MAX)
 
 #define BC_BASE_DIGS (4)
 #define BC_BASE_POW (10000)
@@ -108,6 +109,11 @@ typedef struct BcNum {
 	size_t cap;
 	bool neg;
 } BcNum;
+
+#if BC_ENABLE_EXTRA_MATH
+// Forward declaration
+struct BcRNG;
+#endif // BC_ENABLE_EXTRA_MATH
 
 #define BC_NUM_MIN_BASE (BC_NUM_BIGDIG_C(2))
 #define BC_NUM_MAX_POSIX_IBASE (BC_NUM_BIGDIG_C(16))
@@ -167,7 +173,15 @@ size_t bc_num_scale(const BcNum *restrict n);
 size_t bc_num_len(const BcNum *restrict n);
 
 BcStatus bc_num_bigdig(const BcNum *restrict n, BcBigDig *result);
+void bc_num_bigdig2(const BcNum *restrict n, BcBigDig *result);
 void bc_num_bigdig2num(BcNum *restrict n, BcBigDig val);
+
+#if BC_ENABLE_EXTRA_MATH
+BcStatus bc_num_irand(const BcNum *restrict a, BcNum *restrict b,
+                      struct BcRNG *restrict rng);
+BcStatus bc_num_rng(const BcNum *restrict n, struct BcRNG *rng);
+BcStatus bc_num_createFromRNG(BcNum *restrict n, struct BcRNG *rng);
+#endif // BC_ENABLE_EXTRA_MATH
 
 BcStatus bc_num_add(BcNum *a, BcNum *b, BcNum *c, size_t scale);
 BcStatus bc_num_sub(BcNum *a, BcNum *b, BcNum *c, size_t scale);
@@ -217,5 +231,8 @@ void bc_num_dump(const char *varname, const BcNum *n);
 
 extern const char bc_num_hex_digits[];
 extern const BcBigDig bc_num_pow10[BC_BASE_DIGS + 1];
+
+extern const BcDig bc_num_bigdigMax[];
+extern const size_t bc_num_bigdigMax_size;
 
 #endif // BC_NUM_H
