@@ -5,7 +5,7 @@
 [![Coverity Scan Build Status][17]][18]
 
 ***WARNING: This project has moved to [https://git.yzena.com/][20] for [these
-reasons][21].***
+reasons][21], though GitHub will remain a mirror.***
 
 This is an implementation of the [POSIX `bc` calculator][12] that implements
 [GNU `bc`][1] extensions, as well as the period (`.`) extension for the BSD
@@ -40,7 +40,7 @@ Systems that are known to work:
 * NetBSD
 * Mac OSX
 * Solaris
-* AIX (without long options)
+* AIX
 
 Please submit bug reports if this `bc` does not build out of the box on any
 system besides Windows. If Windows binaries are needed, they can be found at
@@ -167,7 +167,8 @@ EXECSUFFIX=<some_suffix> ./configure.sh
 If a package maintainer wishes to add both a prefix and a suffix, that is
 allowed.
 
-**Note**: The suggested name (and package name) is `bc-gh`.
+**Note**: The suggested name (and package name) when `bc` is not available is
+`bc-gh`.
 
 #### Karatsuba Number
 
@@ -232,9 +233,14 @@ To see what algorithms this `bc` uses, see the [algorithms manual][7].
 
 ## Locales
 
-Currently, this `bc` only has support for English (and US English), French and
-German locales. Patches are welcome for translations; use the existing `*.msg`
-files in `locales/` as a starting point.
+Currently, this `bc` only has support for English (and US English), French,
+German, Portuguese, Dutch, Polish, Russian, Japanese, and Chinese locales.
+Patches are welcome for translations; use the existing `*.msg` files in
+`locales/` as a starting point.
+
+In addition, patches for improvements are welcome; the last two messages in
+Portuguese were made with Google Translate, and the Dutch, Polish, Russian,
+Japanese, and Chinese locales were all generated with [DeepL][22].
 
 The message files provided assume that locales apply to all regions where a
 language is used, but this might not be true for, e.g., `fr_CA` and `fr_CH`.
@@ -253,7 +259,7 @@ Other projects based on this bc are:
 
 ## Language
 
-This `bc` is written in pure ISO C99, using POSIX 2008 APIs.
+This `bc` is written in pure ISO C99, using POSIX 2001 APIs.
 
 ## Commit Messages
 
@@ -319,3 +325,4 @@ Folders:
 [19]: ./manuals/benchmarks.md
 [20]: https://git.yzena.com/gavin/bc
 [21]: https://gavinhoward.com/2020/04/i-am-moving-away-from-github/
+[22]: https://www.deepl.com/translator
