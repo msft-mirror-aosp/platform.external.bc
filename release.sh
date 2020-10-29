@@ -1,8 +1,8 @@
 #! /bin/sh
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# SPDX-License-Identifier: BSD-2-Clause
 #
-# All rights reserved.
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -86,7 +86,6 @@ configure() {
 	header "$_configure_header"
 	CFLAGS="$_configure_CFLAGS" CC="$_configure_CC" GEN_HOST="$_configure_GEN_HOST" \
 		LONG_BIT="$_configure_LONG_BIT" ./configure.sh $_configure_configure_flags > /dev/null
-
 }
 
 build() {
@@ -253,8 +252,7 @@ runtestseries() {
 	_runtestseries_run_tests="$1"
 	shift
 
-	_runtestseries_flags="E H N P S EH EN EP ES HN HP HS NP NS PS EHN EHP EHS
-		ENP ENS EPS HNP HNS HPS NPS EHNP EHNS EHPS ENPS HNPS EHNPS"
+	_runtestseries_flags="E H N P EH EN EP HN HP NP EHN EHP ENP HNP EHNP"
 
 	runconfigseries "$_runtestseries_CFLAGS" "$_runtestseries_CC" \
 		"$_runtestseries_configure_flags" "$_runtestseries_run_tests"
@@ -279,7 +277,8 @@ runtests() {
 	_runtests_run_tests="$1"
 	shift
 
-	runtestseries "$_runtests_CFLAGS" "$_runtests_CC" "$_runtests_configure_flags" "$_runtests_run_tests"
+	runtestseries "-std=c99 $_runtests_CFLAGS" "$_runtests_CC" "$_runtests_configure_flags" "$_runtests_run_tests"
+	runtestseries "-std=c11 $_runtests_CFLAGS" "$_runtests_CC" "$_runtests_configure_flags" "$_runtests_run_tests"
 }
 
 karatsuba() {
@@ -384,9 +383,10 @@ build_set() {
 clang_flags="-Weverything -Wno-padded -Wno-switch-enum -Wno-format-nonliteral"
 clang_flags="$clang_flags -Wno-cast-align -Wno-missing-noreturn -Wno-disabled-macro-expansion"
 clang_flags="$clang_flags -Wno-unreachable-code -Wno-unreachable-code-return"
-gcc_flags="-Wno-maybe-uninitialized"
+clang_flags="$clang_flags -Wno-implicit-fallthrough"
+gcc_flags="-Wno-maybe-uninitialized -Wno-clobbered"
 
-cflags="-Wall -Wextra -Werror -pedantic -std=c99 -Wno-conditional-uninitialized"
+cflags="-Wall -Wextra -Werror -pedantic -Wno-conditional-uninitialized"
 
 debug="$cflags -fno-omit-frame-pointer"
 release="$cflags -DNDEBUG"
@@ -513,7 +513,7 @@ if [ "$run_tests" -ne 0 ]; then
 
 		header "Configuring for afl-gcc..."
 
-		configure "$debug" "afl-gcc" "-HNPS -gO3" "1" "$bits"
+		configure "$debug $gcc_flags -DBC_ENABLE_RAND=0" "afl-gcc" "-HNP -gO3" "1" "$bits"
 
 		printf '\n'
 		printf 'Run make\n'
@@ -522,7 +522,7 @@ if [ "$run_tests" -ne 0 ]; then
 		printf '\n'
 		printf 'Then run ASan on the fuzzer test cases with the following build:\n'
 		printf '\n'
-		printf '    CFLAGS="-fsanitize=address -fno-omit-frame-pointer" ./configure.sh -gO3 -HNPS\n'
+		printf '    CFLAGS="-fsanitize=address -fno-omit-frame-pointer -DBC_ENABLE_RAND=0" ./configure.sh -gO3 -HNPS\n'
 		printf '    make\n'
 		printf '\n'
 		printf 'Then run the GitHub release script as follows:\n'
