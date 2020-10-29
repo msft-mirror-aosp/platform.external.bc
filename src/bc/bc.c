@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,23 +41,17 @@
 #include <bc.h>
 #include <vm.h>
 
-int bc_main(int argc, char **argv) {
+void bc_main(int argc, char **argv) {
 
-	BcStatus s;
+	vm.read_ret = BC_INST_RET;
+	vm.help = bc_help;
+	vm.sigmsg = bc_sig_msg;
+	vm.siglen = bc_sig_msg_len;
 
-	vm->read_ret = BC_INST_RET;
-	vm->help = bc_help;
-#if BC_ENABLE_SIGNALS
-	vm->sigmsg = bc_sig_msg;
-	vm->siglen = (uchar) strlen(vm->sigmsg);
-#endif // BC_ENABLE_SIGNALS
+	vm.next = bc_lex_token;
+	vm.parse = bc_parse_parse;
+	vm.expr = bc_parse_expr;
 
-	vm->next = bc_lex_token;
-	vm->parse = bc_parse_parse;
-	vm->expr = bc_parse_expr;
-
-	s = bc_vm_boot(argc, argv, "BC_LINE_LENGTH", "BC_ENV_ARGS", "BC_EXPR_EXIT");
-
-	return (int) s;
+	bc_vm_boot(argc, argv, "BC_LINE_LENGTH", "BC_ENV_ARGS");
 }
 #endif // BC_ENABLED

@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,23 +41,17 @@
 #include <dc.h>
 #include <vm.h>
 
-int dc_main(int argc, char **argv) {
+void dc_main(int argc, char **argv) {
 
-	BcStatus s;
+	vm.read_ret = BC_INST_POP_EXEC;
+	vm.help = dc_help;
+	vm.sigmsg = dc_sig_msg;
+	vm.siglen = dc_sig_msg_len;
 
-	vm->read_ret = BC_INST_POP_EXEC;
-	vm->help = dc_help;
-#if BC_ENABLE_SIGNALS
-	vm->sigmsg = dc_sig_msg;
-	vm->siglen = (uchar) strlen(vm->sigmsg);
-#endif // BC_ENABLE_SIGNALS
+	vm.next = dc_lex_token;
+	vm.parse = dc_parse_parse;
+	vm.expr = dc_parse_expr;
 
-	vm->next = dc_lex_token;
-	vm->parse = dc_parse_parse;
-	vm->expr = dc_parse_expr;
-
-	s = bc_vm_boot(argc, argv, "DC_LINE_LENGTH", "DC_ENV_ARGS", "DC_EXPR_EXIT");
-
-	return (int) s;
+	bc_vm_boot(argc, argv, "DC_LINE_LENGTH", "DC_ENV_ARGS");
 }
 #endif // DC_ENABLED
