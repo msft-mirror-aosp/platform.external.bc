@@ -5,11 +5,11 @@ third_party {
     type: GIT
     value: "https://github.com/gavinhoward/bc"
   }
-  version: "2.7.2"
+  version: "3.1.6"
   license_type: NOTICE
   last_upgrade_date {
     year: 2020
-    month: 5
-    day: 6
+    month: 10
+    day: 28
   }
 }
