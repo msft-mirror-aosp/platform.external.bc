@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -54,9 +54,7 @@ typedef enum BcStatus {
 	BC_STATUS_ERROR_EXEC,
 	BC_STATUS_ERROR_FATAL,
 	BC_STATUS_EOF,
-	BC_STATUS_EMPTY_EXPR,
 	BC_STATUS_QUIT,
-	BC_STATUS_SIGNAL,
 
 } BcStatus;
 
@@ -156,6 +154,14 @@ typedef enum BcError {
 #ifndef BC_DEBUG_CODE
 #define BC_DEBUG_CODE (0)
 #endif // BC_DEBUG_CODE
+
+#if __STDC_VERSION__ >= 201100L
+#include <stdnoreturn.h>
+#define BC_NORETURN _Noreturn
+#else // __STDC_VERSION__
+#define BC_NORETURN
+#define BC_MUST_RETURN
+#endif // __STDC_VERSION__
 
 // Workarounds for AIX's POSIX incompatibility.
 #ifndef SIZE_MAX
