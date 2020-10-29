@@ -53,6 +53,8 @@ e----
 ++-e
 ---e
 ++x += 4
+x++ += 4
+(i += 1) += 1
 -i+=1
 e a
 c!
@@ -233,6 +235,7 @@ bytes(1) + 4
 4e-4.2
 a[2^63] = 1
 ibase = 100
+length(l[] + i[])
 length("string")
 abs("string")
 abs(a[])
