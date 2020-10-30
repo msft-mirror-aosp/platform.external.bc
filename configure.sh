@@ -1,8 +1,8 @@
 #! /bin/sh
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# SPDX-License-Identifier: BSD-2-Clause
 #
-# All rights reserved.
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -47,12 +47,12 @@ usage() {
 
 	printf 'usage: %s -h\n' "$script"
 	printf '       %s --help\n' "$script"
-	printf '       %s [-bD|-dB|-c] [-EfgGHMNPST] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\n' "$script"
+	printf '       %s [-bD|-dB|-c] [-EfgGHlMNPT] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\n' "$script"
 	printf '       %s \\\n' "$script"
 	printf '           [--bc-only --disable-dc|--dc-only --disable-bc|--coverage]      \\\n'
 	printf '           [--debug --disable-extra-math --disable-generated-tests]        \\\n'
 	printf '           [--disable-history --disable-man-pages --disable-nls]           \\\n'
-	printf '           [--disable-prompt --disable-signal-handling --disable-strip]    \\\n'
+	printf '           [--disable-prompt --disable-strip] [--install-all-locales]      \\\n'
 	printf '           [--opt=OPT_LEVEL] [--karatsuba-len=KARATSUBA_LEN]               \\\n'
 	printf '           [--prefix=PREFIX] [--bindir=BINDIR] [--datarootdir=DATAROOTDIR] \\\n'
 	printf '           [--datadir=DATADIR] [--mandir=MANDIR] [--man1dir=MAN1DIR]       \\\n'
@@ -98,6 +98,10 @@ usage() {
 	printf '    -k KARATSUBA_LEN, --karatsuba-len KARATSUBA_LEN\n'
 	printf '        Set the karatsuba length to KARATSUBA_LEN (default is 64).\n'
 	printf '        It is an error if KARATSUBA_LEN is not a number or is less than 16.\n'
+	printf '    -l, --install-all-locales\n'
+	printf '        Installs all locales, regardless of how many are on the system. This\n'
+	printf '        option is useful for package maintainers who want to make sure that\n'
+	printf '        a package contains all of the locales that end users might need.\n'
 	printf '    -M, --disable-man-pages\n'
 	printf '        Disable installing manpages.\n'
 	printf '    -N, --disable-nls\n'
@@ -110,8 +114,6 @@ usage() {
 	printf '        Disables the prompt in the built bc. The prompt will never show up,\n'
 	printf '        or in other words, it will be permanently disabled and cannot be\n'
 	printf '        enabled.\n'
-	printf '    -S, --disable-signal-handling\n'
-	printf '        Disable signal handling. On by default.\n'
 	printf '    -T, --disable-strip\n'
 	printf '        Disable stripping symbols from the compiled binary or binaries.\n'
 	printf '        Stripping symbols only happens when debug mode is off.\n'
@@ -310,9 +312,8 @@ gen_file_lists() {
 bc_only=0
 dc_only=0
 coverage=0
-karatsuba_len=64
+karatsuba_len=32
 debug=0
-signals=1
 hist=1
 extra_math=1
 optimization=""
@@ -322,8 +323,9 @@ nls=1
 prompt=1
 force=0
 strip_bin=1
+all_locales=0
 
-while getopts "bBcdDEfgGhHk:MNO:PST-" opt; do
+while getopts "bBcdDEfgGhHk:lMNO:PST-" opt; do
 
 	case "$opt" in
 		b) bc_only=1 ;;
@@ -338,11 +340,11 @@ while getopts "bBcdDEfgGhHk:MNO:PST-" opt; do
 		h) usage ;;
 		H) hist=0 ;;
 		k) karatsuba_len="$OPTARG" ;;
+		l) all_locales=1 ;;
 		M) install_manpages=0 ;;
 		N) nls=0 ;;
 		O) optimization="$OPTARG" ;;
 		P) prompt=0 ;;
-		S) signals=0 ;;
 		T) strip_bin=0 ;;
 		-)
 			arg="$1"
@@ -426,17 +428,17 @@ while getopts "bBcdDEfgGhHk:MNO:PST-" opt; do
 				disable-man-pages) install_manpages=0 ;;
 				disable-nls) nls=0 ;;
 				disable-prompt) prompt=0 ;;
-				disable-signal-handling) signals=0 ;;
 				disable-strip) strip_bin=0 ;;
+				install-all-locales) all_locales=1 ;;
 				help* | bc-only* | dc-only* | coverage* | debug*)
 					usage "No arg allowed for --$arg option" ;;
 				disable-bc* | disable-dc* | disable-extra-math*)
 					usage "No arg allowed for --$arg option" ;;
 				disable-generated-tests* | disable-history*)
 					usage "No arg allowed for --$arg option" ;;
-				disable-man-pages* | disable-nls* | disable-signal-handling*)
+				disable-man-pages* | disable-nls* | disable-strip*)
 					usage "No arg allowed for --$arg option" ;;
-				disable-strip*)
+				install-all-locales*)
 					usage "No arg allowed for --$arg option" ;;
 				'') break ;; # "--" terminates argument processing
 				* ) usage "Invalid option $LONG_OPTARG" ;;
@@ -529,6 +531,7 @@ executable="BC_EXEC"
 
 bc_test="@tests/all.sh bc $extra_math 1 $generate_tests 0 \$(BC_EXEC)"
 bc_time_test="@tests/all.sh bc $extra_math 1 $generate_tests 1 \$(BC_EXEC)"
+
 dc_test="@tests/all.sh dc $extra_math 1 $generate_tests 0 \$(DC_EXEC)"
 dc_time_test="@tests/all.sh dc $extra_math 1 $generate_tests 1 \$(DC_EXEC)"
 
@@ -600,8 +603,8 @@ else
 
 	link="\$(LINK) \$(BIN) \$(EXEC_PREFIX)\$(DC)"
 
-	karatsuba="@\$(KARATSUBA) 0 \$(BC_EXEC)"
-	karatsuba_test="@\$(KARATSUBA) 100 \$(BC_EXEC)"
+	karatsuba="@\$(KARATSUBA) 30 0 \$(BC_EXEC)"
+	karatsuba_test="@\$(KARATSUBA) 1 100 \$(BC_EXEC)"
 
 	install_prereqs=" install_bc_manpage install_dc_manpage"
 	uninstall_prereqs=" uninstall_bc uninstall_dc"
@@ -637,13 +640,13 @@ if [ "$coverage" -eq 1 ]; then
 	CFLAGS="-fprofile-arcs -ftest-coverage -g -O0 $CFLAGS"
 	CPPFLAGS="-DNDEBUG $CPPFLAGS"
 
-	COVERAGE="@gcov -pabcdf \$(GCDA) \$(BC_GCDA) \$(DC_GCDA)"
-	COVERAGE="$COVERAGE;\$(RM) -f \$(GEN)*.gc*"
-	COVERAGE="$COVERAGE;gcovr --html-details --output index.html"
-	COVERAGE_PREREQS=" test"
+	COVERAGE_OUTPUT="@gcov -pabcdf \$(GCDA) \$(BC_GCDA) \$(DC_GCDA) \$(HISTORY_GCDA) \$(RAND_GCDA)"
+	COVERAGE_OUTPUT="$COVERAGE_OUTPUT;\$(RM) -f \$(GEN)*.gc*"
+	COVERAGE_OUTPUT="$COVERAGE_OUTPUT;gcovr --html-details --output index.html"
+	COVERAGE_PREREQS=" test coverage_output"
 
 else
-	COVERAGE="@printf 'Coverage not generated\\\\n'"
+	COVERAGE_OUTPUT="@printf 'Coverage not generated\\\\n'"
 	COVERAGE_PREREQS=""
 fi
 
@@ -692,12 +695,12 @@ if [ "$nls" -ne 0 ]; then
 
 	printf 'Testing NLS...\n'
 
-	flags="-DBC_ENABLE_NLS=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc -DBC_ENABLE_SIGNALS=$signals"
+	flags="-DBC_ENABLE_NLS=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc"
 	flags="$flags -DBC_ENABLE_HISTORY=$hist"
 	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I./include/"
-	flags="$flags -D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600"
+	flags="$flags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 
-	"$HOSTCC" $HOSTCFLAGS $flags -c "src/vm.c" -o "$scriptdir/vm.o" > /dev/null 2>&1
+	"$CC" $CPPFLAGS $CFLAGS $flags -c "src/vm.c" -o "$scriptdir/vm.o" > /dev/null 2>&1
 
 	err="$?"
 
@@ -757,6 +760,13 @@ if [ "$nls" -ne 0 ]; then
 else
 	install_locales_prereqs=""
 	uninstall_locales_prereqs=""
+	all_locales=0
+fi
+
+if [ "$nls" -ne 0 ] && [ "$all_locales" -ne 0 ]; then
+	install_locales="\$(LOCALE_INSTALL) -l \$(NLSPATH) \$(MAIN_EXEC) \$(DESTDIR)"
+else
+	install_locales="\$(LOCALE_INSTALL) \$(NLSPATH) \$(MAIN_EXEC) \$(DESTDIR)"
 fi
 
 if [ "$hist" -eq 1 ]; then
@@ -765,12 +775,12 @@ if [ "$hist" -eq 1 ]; then
 
 	printf 'Testing history...\n'
 
-	flags="-DBC_ENABLE_HISTORY=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc -DBC_ENABLE_SIGNALS=$signals"
+	flags="-DBC_ENABLE_HISTORY=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc"
 	flags="$flags -DBC_ENABLE_NLS=$nls"
 	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I./include/"
-	flags="$flags -D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600"
+	flags="$flags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 
-	"$HOSTCC" $HOSTCFLAGS $flags -c "src/history/history.c" -o "$scriptdir/history.o" > /dev/null 2>&1
+	"$CC" $CPPFLAGS $CFLAGS $flags -c "src/history/history.c" -o "$scriptdir/history.o" > /dev/null 2>&1
 
 	err="$?"
 
@@ -814,6 +824,28 @@ else
 	fi
 fi
 
+manpage_args=""
+
+if [ "$extra_math" -eq 0 ]; then
+	manpage_args="E"
+fi
+
+if [ "$hist" -eq 0 ]; then
+	manpage_args="${manpage_args}H"
+fi
+
+if [ "$nls" -eq 0 ]; then
+	manpage_args="${manpage_args}N"
+fi
+
+if [ "$prompt" -eq 0 ]; then
+	manpage_args="${manpage_args}P"
+fi
+
+if [ "$manpage_args" = "" ]; then
+	manpage_args="A"
+fi
+
 # Print out the values; this is for debugging.
 if [ "$bc" -ne 0 ]; then
 	printf 'Building bc\n'
@@ -826,7 +858,6 @@ else
 	printf 'Not building dc\n'
 fi
 printf '\n'
-printf 'BC_ENABLE_SIGNALS=%s\n' "$signals"
 printf 'BC_ENABLE_HISTORY=%s\n' "$hist"
 printf 'BC_ENABLE_EXTRA_MATH=%s\n' "$extra_math"
 printf 'BC_ENABLE_NLS=%s\n' "$nls"
@@ -871,7 +902,6 @@ contents=$(replace "$contents" "BC_ENABLED" "$bc")
 contents=$(replace "$contents" "DC_ENABLED" "$dc")
 contents=$(replace "$contents" "LINK" "$link")
 
-contents=$(replace "$contents" "SIGNALS" "$signals")
 contents=$(replace "$contents" "HISTORY" "$hist")
 contents=$(replace "$contents" "EXTRA_MATH" "$extra_math")
 contents=$(replace "$contents" "NLS" "$nls")
@@ -894,9 +924,10 @@ contents=$(replace "$contents" "CPPFLAGS" "$CPPFLAGS")
 contents=$(replace "$contents" "LDFLAGS" "$LDFLAGS")
 contents=$(replace "$contents" "CC" "$CC")
 contents=$(replace "$contents" "HOSTCC" "$HOSTCC")
-contents=$(replace "$contents" "COVERAGE" "$COVERAGE")
+contents=$(replace "$contents" "COVERAGE_OUTPUT" "$COVERAGE_OUTPUT")
 contents=$(replace "$contents" "COVERAGE_PREREQS" "$COVERAGE_PREREQS")
 contents=$(replace "$contents" "INSTALL_PREREQS" "$install_prereqs")
+contents=$(replace "$contents" "INSTALL_LOCALES" "$install_locales")
 contents=$(replace "$contents" "INSTALL_LOCALES_PREREQS" "$install_locales_prereqs")
 contents=$(replace "$contents" "UNINSTALL_MAN_PREREQS" "$uninstall_man_prereqs")
 contents=$(replace "$contents" "UNINSTALL_PREREQS" "$uninstall_prereqs")
@@ -908,6 +939,7 @@ contents=$(replace "$contents" "EXEC" "$executable")
 
 contents=$(replace "$contents" "BC_TEST" "$bc_test")
 contents=$(replace "$contents" "BC_TIME_TEST" "$bc_time_test")
+
 contents=$(replace "$contents" "DC_TEST" "$dc_test")
 contents=$(replace "$contents" "DC_TIME_TEST" "$dc_time_test")
 
@@ -930,5 +962,10 @@ contents=$(replace "$contents" "GEN_EMU" "$GEN_EMU")
 printf '%s\n' "$contents" > "$scriptdir/Makefile"
 
 cd "$scriptdir"
+
+cp -f manuals/bc/$manpage_args.1.md manuals/bc.1.md
+cp -f manuals/bc/$manpage_args.1 manuals/bc.1
+cp -f manuals/dc/$manpage_args.1.md manuals/dc.1.md
+cp -f manuals/dc/$manpage_args.1 manuals/dc.1
 
 make clean > /dev/null
