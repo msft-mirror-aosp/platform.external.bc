@@ -11,7 +11,7 @@ This is an implementation of the [POSIX `bc` calculator][12] that implements
 [GNU `bc`][1] extensions, as well as the period (`.`) extension for the BSD
 flavor of `bc`.
 
-For more information, see this `bc`'s [full manual][2].
+For more information, see this `bc`'s full manual.
 
 This `bc` also includes an implementation of `dc` in the same binary, accessible
 via a symbolic link, which implements all FreeBSD and GNU extensions. (If a
@@ -19,7 +19,7 @@ standalone `dc` binary is desired, `bc` can be copied and renamed to `dc`.) The
 `!` command is omitted; I believe this poses security concerns and that such
 functionality is unnecessary.
 
-For more information, see the `dc`'s [full manual][3].
+For more information, see the `dc`'s full manual.
 
 This `bc` is Free and Open Source Software (FOSS). It is offered under the BSD
 2-clause License. Full license text may be found in the [`LICENSE.md`][4] file.
@@ -27,9 +27,9 @@ This `bc` is Free and Open Source Software (FOSS). It is offered under the BSD
 ## Prerequisites
 
 This `bc` only requires a C99-compatible compiler and a (mostly) POSIX
-2001-compatible system with the XSI (X/Open System Interfaces) option group.
+2008-compatible system with the XSI (X/Open System Interfaces) option group.
 
-Since POSIX 2001 with XSI requires the existence of a C99 compiler as `c99`, any
+Since POSIX 2008 with XSI requires the existence of a C99 compiler as `c99`, any
 POSIX and XSI-compatible system will have everything needed.
 
 Systems that are known to work:
@@ -39,7 +39,7 @@ Systems that are known to work:
 * OpenBSD
 * NetBSD
 * Mac OSX
-* Solaris
+* Solaris* (as long as the Solaris version supports POSIX 2008)
 * AIX
 
 Please submit bug reports if this `bc` does not build out of the box on any
@@ -115,6 +115,9 @@ When I ran benchmarks with my `bc` compiled under `clang`, it performed much
 better than when compiled under `gcc`. I recommend compiling this `bc` with
 `clang`.
 
+I also recommend building this `bc` with C11 if you can because `bc` will detect
+a C11 compiler and add `_Noreturn` to any relevant function(s).
+
 #### Recommended Optimizations
 
 I wrote this `bc` with Separation of Concerns, which means that there are many
@@ -131,7 +134,6 @@ optimizations I recommend are:
 
 1.	`-O3`
 2.	`-flto` (link-time optimization)
-3.	`-march=native` (optimize for the current CPU)
 
 in that order.
 
@@ -139,9 +141,9 @@ Link-time optimization, in particular, speeds up the `bc` a lot. This is because
 when link-time optimization is turned on, the optimizer can look across files
 and inline *much* more heavily.
 
-For packages that are not built on the oldest supported hardware,
-`-march=native` is not recommended because of the possibility of illegal
-instructions.
+However, I recommend ***NOT*** using `-march=native`. Doing so will reduce this
+`bc`'s performance, at least when building with link-time optimization. See the
+[benchmarks][19] for more details.
 
 #### Stripping Binaries
 
@@ -179,6 +181,8 @@ This script is not a compile-time or runtime prerequisite; it is for package and
 distro maintainers to run once when a package is being created. It finds the
 optimal Karatsuba number (see the [algorithms manual][7] for more information)
 for the machine that it is running on.
+
+The easiest way to run this script is with `make karatsuba`.
 
 If desired, maintainers can also skip running this script because there is a
 sane default for the Karatsuba number.
@@ -257,9 +261,13 @@ Other projects based on this bc are:
 * [toybox `bc`][9]. The maintainer has also made his own changes, so bugs in the
   toybox `bc` should be reported there.
 
+* [FreeBSD `bc`][23]. While the `bc` in FreeBSD is kept up-to-date, it is better
+  to [report bugs there][24], as well as [submit patches][25], and the
+  maintainers of the package will contact me if necessary.
+
 ## Language
 
-This `bc` is written in pure ISO C99, using POSIX 2001 APIs.
+This `bc` is written in pure ISO C99, using POSIX 2008 APIs.
 
 ## Commit Messages
 
@@ -289,7 +297,7 @@ Files:
 	locale_install.sh    A script to install locales, if desired.
 	locale_uninstall.sh  A script to uninstall locales.
 	Makefile.in          The Makefile template.
-	manpage.sh           Script to generate man pages from ronn files.
+	manpage.sh           Script to generate man pages from markdown files.
 	NOTICE.md            List of contributors and copyright owners.
 	RELEASE.md           A checklist for making a release (maintainer use only).
 	release.sh           A script to test for release (maintainer use only).
@@ -305,8 +313,6 @@ Folders:
 	tests    All tests.
 
 [1]: https://www.gnu.org/software/bc/
-[2]: ./manuals/bc.md
-[3]: ./manuals/dc.md
 [4]: ./LICENSE.md
 [5]: ./manuals/build.md
 [6]: https://pkg.musl.cc/bc/
@@ -326,3 +332,6 @@ Folders:
 [20]: https://git.yzena.com/gavin/bc
 [21]: https://gavinhoward.com/2020/04/i-am-moving-away-from-github/
 [22]: https://www.deepl.com/translator
+[23]: https://svnweb.freebsd.org/base/head/contrib/bc/
+[24]: https://bugs.freebsd.org/
+[25]: https://reviews.freebsd.org/

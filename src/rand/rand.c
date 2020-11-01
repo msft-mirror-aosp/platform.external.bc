@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2019 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2019 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -66,17 +66,19 @@
  *
  */
 
-#if BC_ENABLE_EXTRA_MATH
-
-#include <stdio.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include <status.h>
 #include <num.h>
 #include <rand.h>
 #include <vm.h>
+
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 
 #if !BC_RAND_BUILTIN
 
@@ -166,13 +168,34 @@ static void bc_rand_copy(BcRNGData *d, BcRNGData *s) {
 	else if (!BC_RAND_NOTMODIFIED(s)) bc_rand_clearModified(d);
 }
 
-static uchar bc_rand_frand(void *ptr) {
-	return (uchar) fgetc((FILE*) ptr);
+static ulong bc_rand_frand(void *ptr) {
+
+	ulong buf[1];
+	int fd;
+	ssize_t nread;
+
+	assert(ptr != NULL);
+
+	fd = *((int*) ptr);
+
+	nread = read(fd, buf, sizeof(ulong));
+
+	if (BC_ERR(nread != sizeof(ulong))) bc_vm_err(BC_ERROR_FATAL_IO_ERR);
+
+	return *((ulong*) buf);
 }
 
-static uchar bc_rand_rand(void *ptr) {
+static ulong bc_rand_rand(void *ptr) {
+
+	size_t i;
+	ulong res = 0;
+
 	BC_UNUSED(ptr);
-	return (uchar) (unsigned int) rand();
+
+	for (i = 0; i < sizeof(ulong); ++i)
+		res |= ((ulong) (rand() & BC_RAND_SRAND_BITS)) << (i * CHAR_BIT);
+
+	return res;
 }
 
 static BcRandState bc_rand_inc(BcRNGData *r) {
@@ -218,26 +241,15 @@ static void bc_rand_seedRNG(BcRNGData *r, ulong state1, ulong state2,
 	bc_rand_setInc(r);
 }
 
-static ulong bc_rand_fillUlong(BcRandChar fchar, void *ptr) {
-
-	size_t i;
-	ulong res = 0;
-
-	for (i = 0; i < sizeof(ulong); ++i)
-		res |= ((ulong) fchar(ptr)) << (i * CHAR_BIT);
-
-	return res;
-}
-
-static void bc_rand_fill(BcRNGData *r, BcRandChar fchar, void *ptr) {
+static void bc_rand_fill(BcRNGData *r, BcRandUlong fulong, void *ptr) {
 
 	ulong state1, state2, inc1, inc2;
 
-	state1 = bc_rand_fillUlong(fchar, ptr);
-	state2 = bc_rand_fillUlong(fchar, ptr);
+	state1 = fulong(ptr);
+	state2 = fulong(ptr);
 
-	inc1 = bc_rand_fillUlong(fchar, ptr);
-	inc2 = bc_rand_fillUlong(fchar, ptr);
+	inc1 = fulong(ptr);
+	inc2 = fulong(ptr);
 
 	bc_rand_seedRNG(r, state1, state2, inc1, inc2);
 }
@@ -266,21 +278,22 @@ static void bc_rand_seedZeroes(BcRNG *r, BcRNGData *rng, size_t idx) {
 	}
 }
 
-static void bc_rand_srand(BcRNG *r) {
+static void bc_rand_srand(BcRNGData *rng) {
 
-	BcRNGData *rng = bc_vec_top(&r->v);
+	int fd;
 
-	if (BC_ERR(BC_RAND_ZERO(rng))) {
+	BC_SIG_LOCK;
 
-		FILE* rand = fopen("/dev/urandom", "r");
+	fd = open("/dev/urandom", O_RDONLY);
 
-		if (BC_NO_ERR(rand != NULL)) {
-			bc_rand_fill(rng, bc_rand_frand, rand);
-			fclose(rand);
-		}
+	if (BC_NO_ERR(fd >= 0)) {
+		bc_rand_fill(rng, bc_rand_frand, &fd);
+		close(fd);
 	}
 
 	while (BC_ERR(BC_RAND_ZERO(rng))) bc_rand_fill(rng, bc_rand_rand, NULL);
+
+	BC_SIG_UNLOCK;
 }
 
 static void bc_rand_propagate(BcRNG *r, BcRNGData *rng) {
@@ -305,11 +318,10 @@ static void bc_rand_propagate(BcRNG *r, BcRNGData *rng) {
 
 BcRand bc_rand_int(BcRNG *r) {
 
-	BcRNGData *rng;
+	BcRNGData *rng = bc_vec_top(&r->v);
 
-	bc_rand_srand(r);
+	if (BC_ERR(BC_RAND_ZERO(rng))) bc_rand_srand(rng);
 
-	rng = bc_vec_top(&r->v);
 	bc_rand_step(rng);
 	bc_rand_propagate(r, rng);
 
@@ -362,12 +374,11 @@ static BcRandState bc_rand_getInc(BcRNGData *r) {
 
 void bc_rand_getRands(BcRNG *r, BcRand *s1, BcRand *s2, BcRand *i1, BcRand *i2)
 {
-	BcRNGData *rng;
 	BcRandState inc;
+	BcRNGData *rng = bc_vec_top(&r->v);
 
-	bc_rand_srand(r);
+	if (BC_ERR(BC_RAND_ZERO(rng))) bc_rand_srand(rng);
 
-	rng = bc_vec_top(&r->v);
 	inc = bc_rand_getInc(rng);
 
 	*s1 = BC_RAND_TRUNC(rng->state);
@@ -384,17 +395,21 @@ void bc_rand_push(BcRNG *r) {
 	bc_vec_push(&r->v, &rng);
 }
 
-void bc_rand_pop(BcRNG *r) {
-	bc_vec_pop(&r->v);
+void bc_rand_pop(BcRNG *r, bool reset) {
+	bc_vec_npop(&r->v, reset ? r->v.len - 1 : 1);
 }
 
 void bc_rand_init(BcRNG *r) {
+	BC_SIG_ASSERT_LOCKED;
 	bc_vec_init(&r->v, sizeof(BcRNGData), NULL);
 	bc_rand_push(r);
 }
 
+#ifndef NDEBUG
 void bc_rand_free(BcRNG *r) {
+	BC_SIG_ASSERT_LOCKED;
 	bc_vec_free(&r->v);
 }
+#endif // NDEBUG
 
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
