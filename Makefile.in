@@ -1,7 +1,7 @@
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# SPDX-License-Identifier: BSD-2-Clause
 #
-# All rights reserved.
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -29,7 +29,7 @@
 #
 .POSIX:
 
-VERSION = 2.7.2
+VERSION = 3.1.6
 
 SRC = %%SRC%%
 OBJ = %%OBJ%%
@@ -105,10 +105,10 @@ DC_EXEC = $(BIN)/$(EXEC_PREFIX)$(DC)
 MANUALS = manuals
 BC_MANPAGE_NAME = $(EXEC_PREFIX)$(BC)$(EXEC_SUFFIX).1
 BC_MANPAGE = $(MANUALS)/$(BC).1
-BC_RONN = $(BC_MANPAGE).ronn
+BC_MD = $(BC_MANPAGE).md
 DC_MANPAGE_NAME = $(EXEC_PREFIX)$(DC)$(EXEC_SUFFIX).1
 DC_MANPAGE = $(MANUALS)/$(DC).1
-DC_RONN = $(DC_MANPAGE).ronn
+DC_MD = $(DC_MANPAGE).md
 
 MANPAGE_INSTALL_ARGS = -Dm644
 
@@ -119,7 +119,6 @@ MAIN_EXEC = $(EXEC_PREFIX)$(%%MAIN_EXEC%%)$(EXEC_SUFFIX)
 EXEC = $(%%EXEC%%)
 NLSPATH = %%NLSPATH%%
 
-BC_ENABLE_SIGNALS = %%SIGNALS%%
 BC_ENABLE_HISTORY = %%HISTORY%%
 BC_ENABLE_EXTRA_MATH_NAME = BC_ENABLE_EXTRA_MATH
 BC_ENABLE_EXTRA_MATH = %%EXTRA_MATH%%
@@ -145,11 +144,11 @@ BC_NUM_KARATSUBA_LEN = %%KARATSUBA_LEN%%
 CPPFLAGS1 = -D$(BC_ENABLED_NAME)=$(BC_ENABLED) -D$(DC_ENABLED_NAME)=$(DC_ENABLED)
 CPPFLAGS2 = $(CPPFLAGS1) -I./include/ -DVERSION=$(VERSION) %%LONG_BIT_DEFINE%%
 CPPFLAGS3 = $(CPPFLAGS2) -DEXECPREFIX=$(EXEC_PREFIX) -DMAINEXEC=$(MAIN_EXEC)
-CPPFLAGS4 = $(CPPFLAGS3) -D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600
+CPPFLAGS4 = $(CPPFLAGS3) -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700
 CPPFLAGS5 = $(CPPFLAGS4) -DBC_NUM_KARATSUBA_LEN=$(BC_NUM_KARATSUBA_LEN)
 CPPFLAGS6 = $(CPPFLAGS5) -DBC_ENABLE_NLS=$(BC_ENABLE_NLS) -DBC_ENABLE_PROMPT=$(BC_ENABLE_PROMPT)
 CPPFLAGS7 = $(CPPFLAGS6) -D$(BC_ENABLE_EXTRA_MATH_NAME)=$(BC_ENABLE_EXTRA_MATH)
-CPPFLAGS = $(CPPFLAGS7) -DBC_ENABLE_SIGNALS=$(BC_ENABLE_SIGNALS) -DBC_ENABLE_HISTORY=$(BC_ENABLE_HISTORY)
+CPPFLAGS = $(CPPFLAGS7) -DBC_ENABLE_HISTORY=$(BC_ENABLE_HISTORY)
 CFLAGS = $(CPPFLAGS) %%CPPFLAGS%% %%CFLAGS%%
 LDFLAGS = %%LDFLAGS%%
 
@@ -158,23 +157,29 @@ HOSTCFLAGS = %%HOSTCFLAGS%%
 CC = %%CC%%
 HOSTCC = %%HOSTCC%%
 
+BC_LIB_C_ARGS = bc_lib bc.h bc_lib_name $(BC_ENABLED_NAME) 1
+BC_LIB2_C_ARGS = bc_lib2 bc.h bc_lib2_name "$(BC_ENABLED_NAME) && $(BC_ENABLE_EXTRA_MATH_NAME)" 1
+
+OBJS1 = $(OBJ) $(DC_OBJ) $(BC_OBJ) $(HISTORY_OBJ) $(RAND_OBJ) $(BC_HELP_O) $(DC_HELP_O)
+OBJS = $(OBJS1) $(BC_LIB_O) $(BC_LIB2_O) $(BC_LIB3_O)
+OBJ_TARGETS1 = $(DC_HELP_O) $(BC_HELP_O) $(BC_LIB_O) $(BC_LIB2_O) $(BC_LIB3_O)
+OBJ_TARGETS = $(OBJ_TARGETS1) $(BC_OBJ) $(DC_OBJ) $(HISTORY_OBJ) $(RAND_OBJ) $(OBJ)
+
 .c.o:
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-all: make_bin $(DC_HELP_O) $(BC_HELP_O) $(BC_LIB_O) $(BC_LIB2_O) $(BC_LIB3_O) $(BC_OBJ) $(DC_OBJ) $(HISTORY_OBJ) $(RAND_OBJ) $(OBJ)
-	$(CC) $(CFLAGS) $(OBJ) $(DC_OBJ) $(BC_OBJ) $(HISTORY_OBJ) $(RAND_OBJ) $(BC_HELP_O) $(DC_HELP_O) \
-	$(BC_LIB_O) $(BC_LIB2_O) $(BC_LIB3_O) $(LDFLAGS) -o $(EXEC)
+all: make_bin $(OBJ_TARGETS)
+	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $(EXEC)
 	%%LINK%%
 
 $(GEN_EXEC):
 	%%GEN_EXEC_TARGET%%
 
 $(BC_LIB_C): $(GEN_EXEC) $(BC_LIB)
-	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB) $(BC_LIB_C) bc_lib bc.h bc_lib_name $(BC_ENABLED_NAME) 1
+	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB) $(BC_LIB_C) $(BC_LIB_C_ARGS)
 
 $(BC_LIB2_C): $(GEN_EXEC) $(BC_LIB2)
-	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB2) $(BC_LIB2_C) bc_lib2 bc.h bc_lib2_name \
-	"$(BC_ENABLED_NAME) && $(BC_ENABLE_EXTRA_MATH_NAME)" 1
+	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB2) $(BC_LIB2_C) $(BC_LIB2_C_ARGS)
 
 $(BC_HELP_C): $(GEN_EXEC) $(BC_HELP)
 	$(GEN_EMU) $(GEN_EXEC) $(BC_HELP) $(BC_HELP_C) bc_help bc.h "" $(BC_ENABLED_NAME)
@@ -192,7 +197,7 @@ help:
 	@printf '    check           alias for `make test`\n'
 	@printf '    clean           removes all build files\n'
 	@printf '    clean_config    removes all build files as well as the generated Makefile\n'
-	@printf '    clean_tests     removes all build files, the generated Makefile,\n
+	@printf '    clean_tests     removes all build files, the generated Makefile,\n'
 	@printf '                    and generated tests\n'
 	@printf '    install         installs binaries to "%s%s"\n' "$(DESTDIR)" "$(BINDIR)"
 	@printf '                    and (if enabled) manpages to "%s%s"\n' "$(DESTDIR)" "$(MAN1DIR)"
@@ -250,8 +255,10 @@ karatsuba:
 karatsuba_test:
 	%%KARATSUBA_TEST%%
 
+coverage_output:
+	%%COVERAGE_OUTPUT%%
+
 coverage:%%COVERAGE_PREREQS%%
-	%%COVERAGE%%
 
 version:
 	@printf '%s' "$(VERSION)"
@@ -263,8 +270,8 @@ extra_math:
 	@printf '%s' "$(BC_ENABLE_EXTRA_MATH)"
 
 manpages:
-	$(MANPAGE) $(BC_RONN) $(BC_MANPAGE)
-	$(MANPAGE) $(DC_RONN) $(DC_MANPAGE)
+	$(MANPAGE) bc
+	$(MANPAGE) dc
 
 clean_gen:
 	@$(RM) -f $(GEN_EXEC)
@@ -279,10 +286,6 @@ clean:%%CLEAN_PREREQS%%
 	@$(RM) -f $(BC_EXEC)
 	@$(RM) -f $(DC_EXEC)
 	@$(RM) -fr $(BIN)
-	@$(RM) -f *.gcov
-	@$(RM) -f *.html
-	@$(RM) -f *.gcda *.gcno
-	@$(RM) -f *.profraw
 	@$(RM) -f $(LOCALES)/*.cat
 	@$(RM) -f $(BC_LIB_C) $(BC_LIB_O)
 	@$(RM) -f $(BC_LIB2_C) $(BC_LIB2_O)
@@ -292,8 +295,26 @@ clean:%%CLEAN_PREREQS%%
 clean_config: clean
 	@printf 'Cleaning config...\n'
 	@$(RM) -f Makefile
+	@$(RM) -f $(BC_MD) $(DC_MD)
+	@$(RM) -f $(BC_MANPAGE) $(DC_MANPAGE)
 
-clean_tests: clean clean_config
+clean_coverage:
+	@printf 'Cleaning coverage files...\n'
+	@$(RM) -f *.gcov
+	@$(RM) -f *.html
+	@$(RM) -f *.gcda *.gcno
+	@$(RM) -f *.profraw
+	@$(RM) -f $(GCDA) $(GCNO)
+	@$(RM) -f $(BC_GCDA) $(BC_GCNO)
+	@$(RM) -f $(DC_GCDA) $(DC_GCNO)
+	@$(RM) -f $(HISTORY_GCDA) $(HISTORY_GCNO)
+	@$(RM) -f $(RAND_GCDA) $(RAND_GCNO)
+	@$(RM) -f $(BC_LIB_GCDA) $(BC_LIB_GCNO)
+	@$(RM) -f $(BC_LIB2_GCDA) $(BC_LIB2_GCNO)
+	@$(RM) -f $(BC_HELP_GCDA) $(BC_HELP_GCNO)
+	@$(RM) -f $(DC_HELP_GCDA) $(DC_HELP_GCNO)
+
+clean_tests: clean clean_config clean_coverage
 	@printf 'Cleaning test files...\n'
 	@$(RM) -f tests/bc/parse.txt tests/bc/parse_results.txt
 	@$(RM) -f tests/bc/print.txt tests/bc/print_results.txt
@@ -309,20 +330,12 @@ clean_tests: clean clean_config
 	@$(RM) -f .log_*.txt
 	@$(RM) -f .math.txt .results.txt .ops.txt
 	@$(RM) -f .test.txt
-	@$(RM) -f $(GCDA) $(GCNO)
-	@$(RM) -f $(BC_GCDA) $(BC_GCNO)
-	@$(RM) -f $(DC_GCDA) $(DC_GCNO)
-	@$(RM) -f $(HISTORY_GCDA) $(HISTORY_GCNO)
-	@$(RM) -f $(RAND_GCDA) $(RAND_GCNO)
-	@$(RM) -f $(BC_LIB_GCDA) $(BC_LIB_GCNO)
-	@$(RM) -f $(BC_LIB2_GCDA) $(BC_LIB2_GCNO)
-	@$(RM) -f $(BC_HELP_GCDA) $(BC_HELP_GCNO)
-	@$(RM) -f $(DC_HELP_GCDA) $(DC_HELP_GCNO)
 	@$(RM) -f tags .gdbbreakpoints .gdb_history .gdbsetup
 	@$(RM) -f cscope.*
+	@$(RM) -f bc.old
 
 install_locales:
-	$(LOCALE_INSTALL) $(NLSPATH) $(MAIN_EXEC) $(DESTDIR)
+	%%INSTALL_LOCALES%%
 
 install_bc_manpage:
 	$(SAFE_INSTALL) $(MANPAGE_INSTALL_ARGS) $(BC_MANPAGE) $(DESTDIR)$(MAN1DIR)/$(BC_MANPAGE_NAME)
