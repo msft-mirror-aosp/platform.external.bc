@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2019 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2019 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -69,15 +69,17 @@
 #ifndef BC_RAND_H
 #define BC_RAND_H
 
-#if BC_ENABLE_EXTRA_MATH
-
 #include <stdint.h>
 #include <inttypes.h>
 
 #include <vector.h>
 #include <num.h>
 
-typedef uchar (*BcRandChar)(void*);
+#if BC_ENABLE_EXTRA_MATH
+
+#if BC_ENABLE_RAND
+
+typedef ulong (*BcRandUlong)(void*);
 
 #if BC_LONG_BIT >= 64
 
@@ -195,6 +197,8 @@ typedef uint_fast64_t BcRandState;
 
 #define BC_RAND_NUM_SIZE (BC_NUM_BIGDIG_LOG10 * 2 + 2)
 
+#define BC_RAND_SRAND_BITS ((1 << CHAR_BIT) - 1)
+
 typedef struct BcRNGData {
 
 	BcRandState state;
@@ -209,16 +213,20 @@ typedef struct BcRNG {
 } BcRNG;
 
 void bc_rand_init(BcRNG *r);
+#ifndef NDEBUG
 void bc_rand_free(BcRNG *r);
+#endif // NDEBUG
 
 BcRand bc_rand_int(BcRNG *r);
 BcRand bc_rand_bounded(BcRNG *r, BcRand bound);
 void bc_rand_seed(BcRNG *r, ulong state1, ulong state2, ulong inc1, ulong inc2);
 void bc_rand_push(BcRNG *r);
-void bc_rand_pop(BcRNG *r);
+void bc_rand_pop(BcRNG *r, bool reset);
 void bc_rand_getRands(BcRNG *r, BcRand *s1, BcRand *s2, BcRand *i1, BcRand *i2);
 
 extern const BcRandState bc_rand_multiplier;
+
+#endif // BC_ENABLE_RAND
 
 #endif // BC_ENABLE_EXTRA_MATH
 
