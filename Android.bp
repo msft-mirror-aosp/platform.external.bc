@@ -28,7 +28,7 @@ genrule {
   srcs: ["gen/lib.bc"],
   out: ["gen/lib.c"],
   tool_files: ["gen/strgen.sh"],
-  cmd: "$(location gen/strgen.sh) $(in) $(out) bc_lib bc.h bc_lib_name BC_ENABLED",
+  cmd: "$(location gen/strgen.sh) $(in) $(out) bc_lib bc_lib_name BC_ENABLED",
 }
 
 genrule {
@@ -36,7 +36,7 @@ genrule {
   srcs: ["gen/bc_help.txt"],
   out: ["gen/bc_help.c"],
   tool_files: ["gen/strgen.sh"],
-  cmd: "$(location gen/strgen.sh) $(in) $(out) bc_help bc.h '' BC_ENABLED",
+  cmd: "$(location gen/strgen.sh) $(in) $(out) bc_help '' BC_ENABLED",
 }
 
 genrule {
