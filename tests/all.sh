@@ -1,8 +1,8 @@
 #! /bin/sh
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# SPDX-License-Identifier: BSD-2-Clause
 #
-# All rights reserved.
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -87,14 +87,17 @@ fi
 
 unset BC_ENV_ARGS
 unset BC_LINE_LENGTH
+unset DC_ENV_ARGS
+unset DC_LINE_LENGTH
 
 printf '\nRunning %s tests...\n\n' "$d"
 
 while read t; do
 
 	if [ "$extra" -eq 0  ]; then
-		if [ "$t" = "trunc" -o "$t" = "places" -o "$t" = "shift" -o "$t" = "lib2" \
-		     -o "$t" = "scientific" -o "$t" = "engineering" -o "$t" = "rand" ]
+		if [ "$t" = "trunc" ] || [ "$t" = "places" ] || [ "$t" = "shift" ] || \
+		   [ "$t" = "lib2" ] || [ "$t" = "scientific" ] || [ "$t" = "rand" ] || \
+		   [ "$t" = "engineering" ]
 		then
 			printf 'Skipping %s %s\n' "$d" "$t"
 			continue
@@ -135,6 +138,10 @@ printf '%s\n' "$halt" | "$exe" "$@" > /dev/null 2>&1
 
 if [ "$d" = bc ]; then
 	printf '%s\n' "quit" | "$exe" "$@" > /dev/null 2>&1
+	two=$("$exe" "$@" -e 1+1 -e quit)
+	if [ "$two" != "2" ]; then
+		err_exit "$d failed a quit test" 1
+	fi
 fi
 
 printf 'pass\n'
@@ -148,12 +155,12 @@ fi
 printf 'Running %s environment var tests...' "$d"
 
 if [ "$d" = "bc" ]; then
-	export BC_ENV_ARGS=" -l -q"
+	export BC_ENV_ARGS=" '-l' '' -q"
 	export BC_EXPR_EXIT="1"
 	printf 's(.02893)\n' | "$exe" "$@" > /dev/null
 	"$exe" -e 4 "$@" > /dev/null
 else
-	export DC_ENV_ARGS="-x"
+	export DC_ENV_ARGS="'-x'"
 	export DC_EXPR_EXIT="1"
 	printf '4s stuff\n' | "$exe" "$@" > /dev/null
 	"$exe" -e 4pR "$@" > /dev/null
@@ -194,6 +201,10 @@ printf '%s\n%s\n%s\n%s\n' "$results" "$results" "$results" "$results" > "$out1"
 
 diff "$out1" "$out2"
 
+printf '%s\n' "$halt" | "$exe" "$@" -- "$f" "$f" "$f" "$f" > "$out2"
+
+diff "$out1" "$out2"
+
 if [ "$d" = "bc" ]; then
 	printf '%s\n' "$halt" | "$exe" "$@" -i > /dev/null 2>&1
 fi
@@ -229,6 +240,21 @@ checktest "$d" "$err" "unrecognized option argument" "$out2" "$d"
 err="$?"
 
 checktest "$d" "$err" "unrecognized long option argument" "$out2" "$d"
+
+"$exe" "$@" -f > /dev/null 2> "$out2"
+err="$?"
+
+checktest "$d" "$err" "missing required argument to short option" "$out2" "$d"
+
+"$exe" "$@" --file > /dev/null 2> "$out2"
+err="$?"
+
+checktest "$d" "$err" "missing required argument to long option" "$out2" "$d"
+
+"$exe" "$@" --version=5 > /dev/null 2> "$out2"
+err="$?"
+
+checktest "$d" "$err" "given argument to long option with no argument" "$out2" "$d"
 
 printf 'pass\n'
 

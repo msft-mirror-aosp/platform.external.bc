@@ -84,7 +84,8 @@ sections.
 ### `CC`
 
 C compiler for the target system. `CC` must be compatible with POSIX `c99`
-behavior and options.
+behavior and options. However, **I encourage users to use any C99 or C11
+compatible compiler they wish.**
 
 If there is a space in the basename of the compiler, the items after the first
 space are assumed to be compiler flags, and in that case, the flags are
@@ -281,6 +282,29 @@ following forms:
 --option=arg
 ```
 
+### Library
+
+To build the math library, use the following commands for the configure step:
+
+```
+./configure.sh -a
+./configure.sh --library
+```
+
+Both commands are equivalent.
+
+When the library is built, history, prompt, and locales are disabled, and the
+functionality for `bc` and `dc` are both enabled, though the executables are
+*not* built. This is because the library's options clash with the executables.
+
+To build an optimized version of the library, users can pass optimization
+options to `configure.sh` or include them in `CFLAGS`.
+
+The library API can be found in `manuals/bcl.3.md` or `man bcl` once the library
+is installed.
+
+The library is built as `bin/libbcl.a`.
+
 ### `bc` Only
 
 To build `bc` only (no `dc`), use any one of the following commands for the
@@ -314,20 +338,6 @@ Those commands are all equivalent.
 
 ***Warning***: It is an error to use those options if `dc` has also been
 disabled (see above).
-
-<a name="build-signal-handling"/>
-
-### Signal Handling
-
-To disable signal handling, pass either the `-S` flag or the
-`--disable-signal-handling` option to `configure.sh`, as follows:
-
-```
-./configure.sh -S
-./configure.sh --disable-signal-handling
-```
-
-Both commands are equivalent.
 
 <a name="build-history"/>
 
@@ -379,18 +389,18 @@ can be disabled permanently in the build by passing the `-P` flag or the
 
 Both commands are equivalent.
 
-### Long Options
+### Locales
 
-By default, `bc` and `dc` support long options like `--mathlib` and
-`--interactive`. However, support for these options requires `getopt_long()`
-which is not in the POSIX standard. For those platforms that do *not* have
-`getopt_long()` it will be disabled automatically, or if you wish to disable
-them regardless, you can pass the `-L` flag or the `--disable-long-options`
-option to `configure.sh`, as follows:
+By default, `bc` and `dc` do not install all locales, but only the enabled
+locales. If `DESTDIR` exists and is not empty, then they will install all of
+the locales that exist on the system. The `-l` flag or `--install-all-locales`
+option skips all of that and just installs all of the locales that `bc` and `dc`
+have, regardless. To enable that behavior, you can pass the `-l` flag or the
+`--install-all-locales` option to `configure.sh`, as follows:
 
 ```
-./configure.sh -L
-./configure.sh --disable-long-options
+./configure.sh -l
+./configure.sh --install-all-locales
 ```
 
 Both commands are equivalent.
@@ -415,7 +425,7 @@ the others are, as the operators `$`, `@`, `H`, and `h`, respectively.
 In addition, this `bc` has the option of outputting in scientific notation or
 engineering notation. It can also take input in scientific or engineering
 notation. On top of that, it has a pseudo-random number generator. (See the
-[full manual](./bc.md) for more details.)
+full manual for more details.)
 
 Extra operators, scientific notation, engineering notation, and the
 pseudo-random number generator can be disabled by passing either the `-E` flag
@@ -430,8 +440,7 @@ Both commands are equivalent.
 
 This `bc` also has a larger library that is only enabled if extra operators and
 the pseudo-random number generator are. More information about the functions can
-be found in the [Extended Library](./bc.md#extended-library) section of the
-[full manual](./bc.md).
+be found in the Extended Library section of the full manual.
 
 ### Manpages
 
@@ -527,7 +536,10 @@ make install
 ```
 
 Building with link-time optimization (`-flto` in clang) can further increase the
-performance.
+performance. I ***highly*** recommend doing so.
+
+I do **NOT*** recommend building with `-march=native`; doing so reduces this
+`bc`'s performance.
 
 Manual stripping is not necessary; non-debug builds are automatically stripped
 in the link stage.
@@ -574,15 +586,16 @@ make install
 
 ## Binary Size
 
-When built with both calculators, all available features, and `-Os` using clang,
-the executable is 125.4 kb (125,400 bytes) on `x86_64`. That isn't much for what
-is contained in the binary, but if necessary, it can be reduced.
+When built with both calculators, all available features, and `-Os` using
+`clang` and `musl`, the executable is 140.4 kb (140,386 bytes) on `x86_64`. That
+isn't much for what is contained in the binary, but if necessary, it can be
+reduced.
 
 The single largest user of space is the `bc` calculator. If just `dc` is needed,
-the size can be reduced to 96.7 kb (96,680 bytes).
+the size can be reduced to 107.6 kb (107,584 bytes).
 
 The next largest user of space is history support. If that is not needed, size
-can be reduced (for a build with both calculators) to 108.9 kb (108,912 bytes).
+can be reduced (for a build with both calculators) to 119.9 kb (119,866 bytes).
 
 There are several reasons that history is a bigger user of space than `dc`
 itself:
@@ -593,19 +606,32 @@ itself:
   statements, and other extra features.
 * `dc` does not have much extra code in the interpreter.
 * History has a lot of const data for supporting `UTF-8` terminals.
+* History pulls in a bunch of more code from the `libc`.
+
+The next biggest user is extra math support. Without it, the size is reduced to
+124.0 kb (123,986 bytes) with history and 107.6 kb (107,560 bytes) without
+history.
+
+The reasons why extra math support is bigger than `dc`, besides the fact that
+`dc` is small already, are:
+
+* Extra math supports adds an extra math library that takes several kilobytes of
+  constant data space.
+* Extra math support includes support for a pseudo-random number generator,
+  including the code to convert a series of pseudo-random numbers into a number
+  of arbitrary size.
+* Extra math support adds several operators.
 
 The next biggest user is `dc`, so if just `bc` is needed, the size can be
-reduced to 113.1 kb (113,112 bytes) with history and 96.6 kb (96,624 bytes)
-without history.
+reduced to 128.1 kb (128,096 bytes) with history and extra math support, 107.6
+kb (107,576 bytes) without history and with extra math support, and 95.3 kb
+(95,272 bytes) without history and without extra math support.
 
-The next biggest user is extra math support. Without it, the size (with both
-calculators) is reduced to 117.2 kb (117,168 bytes) with history and 96.6 kb
-(96,584 bytes) without history.
-
-The next largest user is signal handling. If this is not needed, the size (with
-both calculators) can be reduced to 121.3 kb (121,288 bytes) with history and
-extra math support, 104.8 kb (104,784 bytes) without history, 113.1 kb (113,056
-bytes) without extra math support, and 92.5 kb (92,456 bytes) without both.
+*Note*: all of these binary sizes were compiled using `musl` `1.2.0` as the
+`libc`, making a fully static executable, with `clang` `9.0.1` (well,
+`musl-clang` using `clang` `9.0.1`) as the compiler and using `-Os`
+optimizations. These builds were done on an `x86_64` machine running Gentoo
+Linux.
 
 ## Testing
 

@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,16 +36,13 @@
 #include <assert.h>
 #include <ctype.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <unistd.h>
 
-#include <status.h>
 #include <vector.h>
 #include <read.h>
-#include <vm.h>
 #include <args.h>
 #include <opt.h>
 
@@ -72,34 +69,34 @@ static const BcOptLong bc_args_lopt[] = {
 
 };
 
-static void bc_args_exprs(BcVec *exprs, const char *str) {
-	bc_vec_concat(exprs, str);
-	bc_vec_concat(exprs, "\n");
+static void bc_args_exprs(const char *str) {
+	BC_SIG_ASSERT_LOCKED;
+	if (vm.exprs.v == NULL) bc_vec_init(&vm.exprs, sizeof(uchar), NULL);
+	bc_vec_concat(&vm.exprs, str);
+	bc_vec_concat(&vm.exprs, "\n");
 }
 
-static BcStatus bc_args_file(BcVec *exprs, const char *file) {
+static void bc_args_file(const char *file) {
 
-	BcStatus s;
 	char *buf;
 
-	vm->file = file;
+	BC_SIG_ASSERT_LOCKED;
 
-	s = bc_read_file(file, &buf);
-	if (BC_ERR(s)) return s;
+	vm.file = file;
 
-	bc_args_exprs(exprs, buf);
+	bc_read_file(file, &buf);
+	bc_args_exprs(buf);
 	free(buf);
-
-	return s;
 }
 
-BcStatus bc_args(int argc, char *argv[]) {
+void bc_args(int argc, char *argv[]) {
 
-	BcStatus s = BC_STATUS_SUCCESS;
 	int c;
 	size_t i;
 	bool do_exit = false, version = false;
 	BcOpt opts;
+
+	BC_SIG_ASSERT_LOCKED;
 
 	bc_opt_init(&opts, argv);
 
@@ -107,41 +104,41 @@ BcStatus bc_args(int argc, char *argv[]) {
 
 		switch (c) {
 
-			case 0:
-			{
-				// This is the case when a long option is found.
-				break;
-			}
-
 			case 'e':
 			{
-				bc_args_exprs(&vm->exprs, opts.optarg);
+				if (vm.no_exit_exprs)
+					bc_vm_verr(BC_ERR_FATAL_OPTION, "-e (--expression)");
+				bc_args_exprs(opts.optarg);
 				break;
 			}
 
 			case 'f':
 			{
-				s = bc_args_file(&vm->exprs, opts.optarg);
-				if (BC_ERR(s)) return s;
+				if (!strcmp(opts.optarg, "-")) vm.no_exit_exprs = true;
+				else {
+					if (vm.no_exit_exprs)
+						bc_vm_verr(BC_ERR_FATAL_OPTION, "-f (--file)");
+					bc_args_file(opts.optarg);
+				}
 				break;
 			}
 
 			case 'h':
 			{
-				bc_vm_info(vm->help);
+				bc_vm_info(vm.help);
 				do_exit = true;
 				break;
 			}
 
 			case 'i':
 			{
-				vm->flags |= BC_FLAG_I;
+				vm.flags |= BC_FLAG_I;
 				break;
 			}
 
 			case 'P':
 			{
-				vm->flags |= BC_FLAG_P;
+				vm.flags |= BC_FLAG_P;
 				break;
 			}
 
@@ -149,35 +146,35 @@ BcStatus bc_args(int argc, char *argv[]) {
 			case 'g':
 			{
 				assert(BC_IS_BC);
-				vm->flags |= BC_FLAG_G;
+				vm.flags |= BC_FLAG_G;
 				break;
 			}
 
 			case 'l':
 			{
 				assert(BC_IS_BC);
-				vm->flags |= BC_FLAG_L;
+				vm.flags |= BC_FLAG_L;
 				break;
 			}
 
 			case 'q':
 			{
 				assert(BC_IS_BC);
-				vm->flags |= BC_FLAG_Q;
+				// Do nothing.
 				break;
 			}
 
 			case 's':
 			{
 				assert(BC_IS_BC);
-				vm->flags |= BC_FLAG_S;
+				vm.flags |= BC_FLAG_S;
 				break;
 			}
 
 			case 'w':
 			{
 				assert(BC_IS_BC);
-				vm->flags |= BC_FLAG_W;
+				vm.flags |= BC_FLAG_W;
 				break;
 			}
 #endif // BC_ENABLED
@@ -192,28 +189,31 @@ BcStatus bc_args(int argc, char *argv[]) {
 #if DC_ENABLED
 			case 'x':
 			{
-				assert(!BC_IS_BC);
-				vm->flags |= DC_FLAG_X;
+				assert(BC_IS_DC);
+				vm.flags |= DC_FLAG_X;
 				break;
 			}
 #endif // DC_ENABLED
 
-			// An error message has been printed, but we should exit.
+#ifndef NDEBUG
+			// We shouldn't get here because bc_opt_error()/bc_vm_error() should
+			// longjmp() out.
 			case '?':
 			case ':':
 			default:
 			{
-				return BC_STATUS_ERROR_FATAL;
+				abort();
 			}
+#endif // NDEBUG
 		}
 	}
 
 	if (version) bc_vm_info(NULL);
-	if (do_exit) exit((int) s);
-	if (vm->exprs.len > 1 || !BC_IS_BC) vm->flags |= BC_FLAG_Q;
+	if (do_exit) exit((int) vm.status);
+
+	if (opts.optind < (size_t) argc && vm.files.v == NULL)
+		bc_vec_init(&vm.files, sizeof(char*), NULL);
 
 	for (i = opts.optind; i < (size_t) argc; ++i)
-		bc_vec_push(&vm->files, argv + i);
-
-	return s;
+		bc_vec_push(&vm.files, argv + i);
 }

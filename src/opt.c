@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -47,7 +47,7 @@
 #include <opt.h>
 #include <vm.h>
 
-static bool bc_opt_longoptsEnd(const BcOptLong *longopts, size_t i) {
+static inline bool bc_opt_longoptsEnd(const BcOptLong *longopts, size_t i) {
 	return !longopts[i].name && !longopts[i].val;
 }
 
@@ -62,20 +62,9 @@ static const char* bc_opt_longopt(const BcOptLong *longopts, int c) {
 	return "NULL";
 }
 
-static int bc_opt_error(BcError err, int c, const char *str) {
-
-	int result;
-
-	if (err == BC_ERROR_FATAL_OPTION) {
-		bc_vm_error(err, 0, str);
-		result = (int) '?';
-	}
-	else {
-		bc_vm_error(err, 0, (int) c, str);
-		result = (int) (err == BC_ERROR_FATAL_OPTION_ARG ? '\0' : ':');
-	}
-
-	return result;
+static void bc_opt_error(BcErr err, int c, const char *str) {
+	if (err == BC_ERR_FATAL_OPTION) bc_vm_error(err, 0, str);
+	else bc_vm_error(err, 0, (int) c, str);
 }
 
 static int bc_opt_type(const BcOptLong *longopts, char c) {
@@ -96,6 +85,7 @@ static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
 	int type;
 	char *next;
 	char *option = o->argv[o->optind];
+	int ret = -1;
 
 	o->optopt = 0;
 	o->optarg = NULL;
@@ -112,7 +102,7 @@ static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
 		case BC_OPT_BC_ONLY:
 		case BC_OPT_DC_ONLY:
 		{
-			if (type == -1 || (type == BC_OPT_BC_ONLY && !BC_IS_BC) ||
+			if (type == -1 || (type == BC_OPT_BC_ONLY && BC_IS_DC) ||
 			    (type == BC_OPT_DC_ONLY && BC_IS_BC))
 			{
 				char str[2] = {0, 0};
@@ -120,10 +110,12 @@ static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
 				str[0] = option[0];
 				o->optind += 1;
 
-				return bc_opt_error(BC_ERROR_FATAL_OPTION, option[0], str);
+				bc_opt_error(BC_ERR_FATAL_OPTION, option[0], str);
 			}
 		}
 		// Fallthrough.
+		BC_FALLTHROUGH
+
 		case BC_OPT_NONE:
 		{
 			if (option[1]) o->subopt += 1;
@@ -132,7 +124,8 @@ static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
 				o->optind += 1;
 			}
 
-			return option[0];
+			ret = (int) option[0];
+			break;
 		}
 
 		case BC_OPT_REQUIRED:
@@ -145,16 +138,16 @@ static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
 				o->optarg = next;
 				o->optind += 1;
 			}
-			else {
-				return bc_opt_error(BC_ERROR_FATAL_OPTION_NO_ARG, option[0],
-				                    bc_opt_longopt(longopts, option[0]));
-			}
+			else bc_opt_error(BC_ERR_FATAL_OPTION_NO_ARG, option[0],
+			                  bc_opt_longopt(longopts, option[0]));
 
-			return option[0];
+
+			ret = (int) option[0];
+			break;
 		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static bool bc_opt_longoptsMatch(const char *name, const char *option) {
@@ -200,12 +193,8 @@ int bc_opt_parse(BcOpt *o, const BcOptLong *longopts) {
 		o->optind += 1;
 		return -1;
 	}
-	else if (BC_OPT_ISSHORTOPT(option)) {
-		return bc_opt_parseShort(o, longopts);
-	}
-	else if (!BC_OPT_ISLONGOPT(option)) {
-		return -1;
-	}
+	else if (BC_OPT_ISSHORTOPT(option)) return bc_opt_parseShort(o, longopts);
+	else if (!BC_OPT_ISLONGOPT(option)) return -1;
 
 	o->optopt = 0;
 	o->optarg = NULL;
@@ -225,15 +214,15 @@ int bc_opt_parse(BcOpt *o, const BcOptLong *longopts) {
 			o->optopt = longopts[i].val;
 			arg = bc_opt_longoptsArg(option);
 
-			if ((longopts[i].type == BC_OPT_BC_ONLY && !BC_IS_BC) ||
+			if ((longopts[i].type == BC_OPT_BC_ONLY && BC_IS_DC) ||
 			    (longopts[i].type == BC_OPT_DC_ONLY && BC_IS_BC))
 			{
-				return bc_opt_error(BC_ERROR_FATAL_OPTION, o->optopt, name);
+				bc_opt_error(BC_ERR_FATAL_OPTION, o->optopt, name);
 			}
 
 			if (longopts[i].type == BC_OPT_NONE && arg != NULL)
 			{
-				return bc_opt_error(BC_ERROR_FATAL_OPTION_ARG, o->optopt, name);
+				bc_opt_error(BC_ERR_FATAL_OPTION_ARG, o->optopt, name);
 			}
 
 			if (arg != NULL) o->optarg = arg;
@@ -242,15 +231,17 @@ int bc_opt_parse(BcOpt *o, const BcOptLong *longopts) {
 				o->optarg = o->argv[o->optind];
 
 				if (o->optarg != NULL) o->optind += 1;
-				else return bc_opt_error(BC_ERROR_FATAL_OPTION_NO_ARG,
-					                     o->optopt, name);
+				else bc_opt_error(BC_ERR_FATAL_OPTION_NO_ARG,
+				                  o->optopt, name);
 			}
 
 			return o->optopt;
 		}
 	}
 
-	return bc_opt_error(BC_ERROR_FATAL_OPTION, 0, option);
+	bc_opt_error(BC_ERR_FATAL_OPTION, 0, option);
+
+	return -1;
 }
 
 void bc_opt_init(BcOpt *o, char *argv[]) {
