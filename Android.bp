@@ -1,3 +1,20 @@
+package {
+    default_applicable_licenses: ["external_bc_license"],
+}
+
+license {
+    name: "external_bc_license",
+    visibility: [":__subpackages__"],
+    license_kinds: [
+        "SPDX-license-identifier-BSD",
+        "SPDX-license-identifier-MIT",
+    ],
+    license_text: [
+        "LICENSE.md",
+        "NOTICE.md",
+    ],
+}
+
 cc_defaults {
   name: "bc-defaults",
 
