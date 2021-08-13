@@ -39,6 +39,12 @@ cc_defaults {
     ":bc-lib.c",
   ],
   stl: "none",
+  target: {
+    darwin: {
+      // TODO: temporary workaround for https://github.com/gavinhoward/bc/issues/35
+      cflags: ["-D_FORTIFY_SOURCE=0"],
+    },
+  },
 }
 
 genrule {
