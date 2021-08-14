@@ -24,10 +24,7 @@ cc_defaults {
     "-DDC_ENABLED=0",
     "-DBC_ENABLE_EXTRA_MATH=0",
     "-DBC_ENABLE_HISTORY=0",
-    "-DBC_ENABLE_LIBRARY=0",
-    "-DBC_ENABLE_LONG_OPTIONS=1",
     "-DBC_ENABLE_NLS=0",
-    "-DBC_ENABLE_SIGNALS=1",
     "-Os",
   ],
   generated_headers: ["bc-version.h"],
@@ -39,12 +36,6 @@ cc_defaults {
     ":bc-lib.c",
   ],
   stl: "none",
-  target: {
-    darwin: {
-      // TODO: temporary workaround for https://github.com/gavinhoward/bc/issues/35
-      cflags: ["-D_FORTIFY_SOURCE=0"],
-    },
-  },
 }
 
 genrule {
