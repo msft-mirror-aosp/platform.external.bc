@@ -1,8 +1,7 @@
 decimal
 print
-parse
-lib2
 print2
+parse
 length
 scale
 shift
@@ -25,7 +24,6 @@ scientific
 engineering
 globals
 strings
-strings2
 letters
 exponent
 log
@@ -45,7 +43,4 @@ misc6
 misc7
 void
 rand
-recursive_arrays
-divmod
-modexp
-bitfuncs
+lib2
