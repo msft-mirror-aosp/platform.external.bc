@@ -40,14 +40,7 @@
 #include <bc.h>
 #include <vm.h>
 
-/**
- * The main function for bc.
- * @param argc  The number of arguments.
- * @param argv  The arguments.
- */
-void bc_main(int argc, char *argv[]) {
-
-	// All of these just set bc-specific items in BcVm.
+void bc_main(int argc, char **argv) {
 
 	vm.read_ret = BC_INST_RET;
 	vm.help = bc_help;
@@ -58,6 +51,6 @@ void bc_main(int argc, char *argv[]) {
 	vm.parse = bc_parse_parse;
 	vm.expr = bc_parse_expr;
 
-	bc_vm_boot(argc, argv);
+	bc_vm_boot(argc, argv, "BC_LINE_LENGTH", "BC_ENV_ARGS");
 }
 #endif // BC_ENABLED
