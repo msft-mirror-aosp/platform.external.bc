@@ -32,9 +32,8 @@ set -e
 script="$0"
 testdir=$(dirname "$script")
 
-. "$testdir/../scripts/functions.sh"
+. "$testdir/../functions.sh"
 
-# Command-line processing.
 if [ "$#" -lt 1 ]; then
 	printf 'usage: %s dir [exe [args...]]\n' "$0"
 	printf 'valid dirs are:\n'
@@ -61,37 +60,32 @@ errors="$testdir/$d/read_errors.txt"
 out="$testdir/${d}_outputs/read_results.txt"
 outdir=$(dirname "$out")
 
-# Make sure the directory exists.
 if [ ! -d "$outdir" ]; then
 	mkdir -p "$outdir"
 fi
 
 exebase=$(basename "$exe")
 
-# Set stuff for the correct calculator.
 if [ "$d" = "bc" ]; then
 	options="-lq"
 	halt="halt"
-	read_call="read()"
-	read_expr="${read_call}\n5+5;"
 else
 	options="-x"
 	halt="q"
+fi
+
+if [ "$d" = "bc" ]; then
+	read_call="read()"
+	read_expr="${read_call}\n5+5;"
+else
 	read_call="?"
 	read_expr="${read_call}"
 fi
-
-# I use these, so unset them to make the tests work.
-unset BC_ENV_ARGS
-unset BC_LINE_LENGTH
-unset DC_ENV_ARGS
-unset DC_LINE_LENGTH
 
 printf 'Running %s read...' "$d"
 
 set +e
 
-# Run read() on every line.
 while read line; do
 
 	printf '%s\n%s\n' "$read_call" "$line" | "$exe" "$@" "$options" > "$out"
@@ -103,7 +97,6 @@ printf 'pass\n'
 
 printf 'Running %s read errors...' "$d"
 
-# Run read on every line.
 while read line; do
 
 	printf '%s\n%s\n' "$read_call" "$line" | "$exe" "$@" "$options" 2> "$out" > /dev/null
