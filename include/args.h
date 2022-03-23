@@ -37,19 +37,10 @@
 #define BC_ARGS_H
 
 #include <status.h>
-#include <opt.h>
 #include <vm.h>
 
-/**
- * Processes command-line arguments.
- * @param argc        How many arguments there are.
- * @param argv        The array of arguments.
- * @param exit_exprs  True if bc/dc should exit when there are expressions,
- *                    false otherwise.
- */
 void bc_args(int argc, char *argv[], bool exit_exprs);
 
-// A reference to the list of long options.
-extern const BcOptLong bc_args_lopt[];
+extern const char* const bc_args_env_name;
 
 #endif // BC_ARGS_H
