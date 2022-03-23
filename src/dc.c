@@ -40,14 +40,7 @@
 #include <dc.h>
 #include <vm.h>
 
-/**
- * The main function for dc.
- * @param argc  The number of arguments.
- * @param argv  The arguments.
- */
-void dc_main(int argc, char *argv[]) {
-
-	// All of these just set dc-specific items in BcVm.
+void dc_main(int argc, char **argv) {
 
 	vm.read_ret = BC_INST_POP_EXEC;
 	vm.help = dc_help;
@@ -58,6 +51,6 @@ void dc_main(int argc, char *argv[]) {
 	vm.parse = dc_parse_parse;
 	vm.expr = dc_parse_expr;
 
-	bc_vm_boot(argc, argv);
+	bc_vm_boot(argc, argv, "DC_LINE_LENGTH", "DC_ENV_ARGS");
 }
 #endif // DC_ENABLED
