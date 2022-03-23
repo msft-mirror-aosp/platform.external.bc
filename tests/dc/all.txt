@@ -1,7 +1,5 @@
 decimal
 length
-stack_len
-exec_stack_len
 add
 subtract
 multiply
