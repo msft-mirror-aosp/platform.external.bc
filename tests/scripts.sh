@@ -1,8 +1,8 @@
 #! /bin/sh
 #
-# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2018-2019 Gavin D. Howard and contributors.
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -34,18 +34,11 @@ script="$0"
 testdir=$(dirname "${script}")
 
 if [ "$#" -eq 0 ]; then
-	printf 'usage: %s dir [run_extra_tests] [run_stack_tests] [generate_tests] [time_tests] [exec args...]\n' "$script"
+	printf 'usage: %s dir [run_stack_tests] [generate_tests] [time_tests] [exec args...]\n' "$script"
 	exit 1
 else
 	d="$1"
 	shift
-fi
-
-if [ "$#" -gt 0 ]; then
-	run_extra_tests="$1"
-	shift
-else
-	run_extra_tests=1
 fi
 
 if [ "$#" -gt 0 ]; then
@@ -78,12 +71,9 @@ fi
 
 scriptdir="$testdir/$d/scripts"
 
-scripts=$(cat "$scriptdir/all.txt")
+for s in $scriptdir/*.$d; do
 
-for s in $scripts; do
-
-	f=$(basename "$s")
-	sh "$testdir/script.sh" "$d" "$f" "$run_extra_tests" "$run_stack_tests" \
-		"$generate" "$time_tests" "$exe" "$@"
+	f=$(basename -- "$s")
+	sh "$testdir/script.sh" "$d" "$f" "$run_stack_tests" "$generate" "$time_tests" "$exe" "$@"
 
 done

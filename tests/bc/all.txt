@@ -1,7 +1,4 @@
 decimal
-print
-print2
-parse
 length
 scale
 shift
@@ -25,6 +22,9 @@ engineering
 globals
 strings
 letters
+print
+print2
+parse
 exponent
 log
 pi
@@ -39,8 +39,5 @@ misc2
 misc3
 misc4
 misc5
-misc6
-misc7
 void
-rand
 lib2

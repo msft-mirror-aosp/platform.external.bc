@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2018-2019 Gavin D. Howard and contributors.
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -51,17 +51,13 @@
 #define BC_INST_USE_VAL(i) (false)
 #endif // BC_ENABLED
 
-#ifndef NDEBUG
-#define BC_ENABLE_FUNC_FREE (1)
-#else // NDEBUG
-#define BC_ENABLE_FUNC_FREE DC_ENABLED
-#endif // NDEBUG
-
 typedef enum BcInst {
 
 #if BC_ENABLED
-	BC_INST_INC = 0,
-	BC_INST_DEC,
+	BC_INST_INC_POST = 0,
+	BC_INST_DEC_POST,
+	BC_INST_INC_PRE,
+	BC_INST_DEC_PRE,
 #endif // BC_ENABLED
 
 	BC_INST_NEG,
@@ -108,6 +104,9 @@ typedef enum BcInst {
 #endif // BC_ENABLE_EXTRA_MATH
 	BC_INST_ASSIGN,
 
+	BC_INST_INC_NO_VAL,
+	BC_INST_DEC_NO_VAL,
+
 	BC_INST_ASSIGN_POWER_NO_VAL,
 	BC_INST_ASSIGN_MULTIPLY_NO_VAL,
 	BC_INST_ASSIGN_DIVIDE_NO_VAL,
@@ -129,7 +128,6 @@ typedef enum BcInst {
 	BC_INST_ARRAY,
 #endif // BC_ENABLED
 
-	BC_INST_ZERO,
 	BC_INST_ONE,
 
 #if BC_ENABLED
@@ -138,26 +136,14 @@ typedef enum BcInst {
 	BC_INST_IBASE,
 	BC_INST_OBASE,
 	BC_INST_SCALE,
-#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
-	BC_INST_SEED,
-#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_INST_LENGTH,
 	BC_INST_SCALE_FUNC,
 	BC_INST_SQRT,
 	BC_INST_ABS,
-#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
-	BC_INST_IRAND,
-#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_INST_READ,
-#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
-	BC_INST_RAND,
-#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_INST_MAXIBASE,
 	BC_INST_MAXOBASE,
 	BC_INST_MAXSCALE,
-#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
-	BC_INST_MAXRAND,
-#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 
 	BC_INST_PRINT,
 	BC_INST_PRINT_POP,
@@ -253,9 +239,9 @@ typedef enum BcResultType {
 
 	BC_RESULT_STR,
 
+	BC_RESULT_CONSTANT,
 	BC_RESULT_TEMP,
 
-	BC_RESULT_ZERO,
 	BC_RESULT_ONE,
 
 #if BC_ENABLED
@@ -265,9 +251,6 @@ typedef enum BcResultType {
 	BC_RESULT_IBASE,
 	BC_RESULT_OBASE,
 	BC_RESULT_SCALE,
-#if BC_ENABLE_EXTRA_MATH
-	BC_RESULT_SEED,
-#endif // BC_ENABLE_EXTRA_MATH
 
 } BcResultType;
 
@@ -299,8 +282,8 @@ typedef enum BcType {
 struct BcProgram;
 
 void bc_func_init(BcFunc *f, const char* name);
-void bc_func_insert(BcFunc *f, struct BcProgram* p, char* name,
-                    BcType type, size_t line);
+BcStatus bc_func_insert(BcFunc *f, struct BcProgram* p, char* name,
+                        BcType type, size_t line);
 void bc_func_reset(BcFunc *f);
 void bc_func_free(void *func);
 
@@ -310,7 +293,6 @@ void bc_array_copy(BcVec *d, const BcVec *s);
 void bc_string_free(void *string);
 void bc_const_free(void *constant);
 void bc_id_free(void *id);
-void bc_result_clear(BcResult *r);
 void bc_result_copy(BcResult *d, BcResult *src);
 void bc_result_free(void *result);
 

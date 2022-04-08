@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2018-2019 Gavin D. Howard and contributors.
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,31 +40,32 @@
 #include <lang.h>
 #include <vm.h>
 
+int bc_id_cmp(const BcId *e1, const BcId *e2) {
+	return strcmp(e1->name, e2->name);
+}
+
 #ifndef NDEBUG
 void bc_id_free(void *id) {
-	BC_SIG_ASSERT_LOCKED;
 	assert(id != NULL);
 	free(((BcId*) id)->name);
 }
 #endif // NDEBUG
 
 void bc_string_free(void *string) {
-	BC_SIG_ASSERT_LOCKED;
 	assert(string != NULL && (*((char**) string)) != NULL);
-	if (BC_IS_BC) free(*((char**) string));
+	free(*((char**) string));
 }
 
 void bc_const_free(void *constant) {
 	BcConst *c = constant;
-	BC_SIG_ASSERT_LOCKED;
 	assert(c->val != NULL);
 	free(c->val);
 	bc_num_free(&c->num);
 }
 
 #if BC_ENABLED
-void bc_func_insert(BcFunc *f, BcProgram *p, char *name,
-                    BcType type, size_t line)
+BcStatus bc_func_insert(BcFunc *f, BcProgram *p, char *name,
+                        BcType type, size_t line)
 {
 	BcLoc a;
 	size_t i, idx;
@@ -77,7 +78,7 @@ void bc_func_insert(BcFunc *f, BcProgram *p, char *name,
 		BcLoc *id = bc_vec_item(&f->autos, i);
 		if (BC_ERR(idx == id->loc && type == (BcType) id->idx)) {
 			const char *array = type == BC_TYPE_ARRAY ? "[]" : "";
-			bc_vm_error(BC_ERR_PARSE_DUP_LOCAL, line, name, array);
+			return bc_vm_error(BC_ERROR_PARSE_DUP_LOCAL, line, name, array);
 		}
 	}
 
@@ -85,52 +86,36 @@ void bc_func_insert(BcFunc *f, BcProgram *p, char *name,
 	a.idx = type;
 
 	bc_vec_push(&f->autos, &a);
+
+	return BC_STATUS_SUCCESS;
 }
 #endif // BC_ENABLED
 
 void bc_func_init(BcFunc *f, const char *name) {
-
-	BC_SIG_ASSERT_LOCKED;
-
 	assert(f != NULL && name != NULL);
-
 	bc_vec_init(&f->code, sizeof(uchar), NULL);
-
+	bc_vec_init(&f->strs, sizeof(char*), bc_string_free);
 	bc_vec_init(&f->consts, sizeof(BcConst), bc_const_free);
-
 #if BC_ENABLED
 	if (BC_IS_BC) {
-
-		bc_vec_init(&f->strs, sizeof(char*), bc_string_free);
-
 		bc_vec_init(&f->autos, sizeof(BcLoc), NULL);
 		bc_vec_init(&f->labels, sizeof(size_t), NULL);
-
 		f->nparams = 0;
 		f->voidfn = false;
 	}
 #endif // BC_ENABLED
-
 	f->name = name;
 }
 
 void bc_func_reset(BcFunc *f) {
-
-	BC_SIG_ASSERT_LOCKED;
 	assert(f != NULL);
-
-	bc_vec_popAll(&f->code);
-
-	bc_vec_popAll(&f->consts);
-
+	bc_vec_npop(&f->code, f->code.len);
+	bc_vec_npop(&f->strs, f->strs.len);
+	bc_vec_npop(&f->consts, f->consts.len);
 #if BC_ENABLED
 	if (BC_IS_BC) {
-
-		bc_vec_popAll(&f->strs);
-
-		bc_vec_popAll(&f->autos);
-		bc_vec_popAll(&f->labels);
-
+		bc_vec_npop(&f->autos, f->autos.len);
+		bc_vec_npop(&f->labels, f->labels.len);
 		f->nparams = 0;
 		f->voidfn = false;
 	}
@@ -138,37 +123,20 @@ void bc_func_reset(BcFunc *f) {
 }
 
 void bc_func_free(void *func) {
-
-#if BC_ENABLE_FUNC_FREE
-
 	BcFunc *f = (BcFunc*) func;
-
-	BC_SIG_ASSERT_LOCKED;
 	assert(f != NULL);
-
 	bc_vec_free(&f->code);
-
+	bc_vec_free(&f->strs);
 	bc_vec_free(&f->consts);
-
 #if BC_ENABLED
-#ifndef NDEBUG
 	if (BC_IS_BC) {
-
-		bc_vec_free(&f->strs);
-
 		bc_vec_free(&f->autos);
 		bc_vec_free(&f->labels);
 	}
-#endif // NDEBUG
 #endif // BC_ENABLED
-
-#else // BC_ENABLE_FUNC_FREE
-	BC_UNUSED(func);
-#endif // BC_ENABLE_FUNC_FREE
 }
 
 void bc_array_init(BcVec *a, bool nums) {
-	BC_SIG_ASSERT_LOCKED;
 	if (nums) bc_vec_init(a, sizeof(BcNum), bc_num_free);
 	else bc_vec_init(a, sizeof(BcVec), bc_vec_free);
 	bc_array_expand(a, 1);
@@ -178,12 +146,10 @@ void bc_array_copy(BcVec *d, const BcVec *s) {
 
 	size_t i;
 
-	BC_SIG_ASSERT_LOCKED;
-
 	assert(d != NULL && s != NULL);
 	assert(d != s && d->size == s->size && d->dtor == s->dtor);
 
-	bc_vec_popAll(d);
+	bc_vec_npop(d, d->len);
 	bc_vec_expand(d, s->cap);
 	d->len = s->len;
 
@@ -196,8 +162,6 @@ void bc_array_copy(BcVec *d, const BcVec *s) {
 void bc_array_expand(BcVec *a, size_t len) {
 
 	assert(a != NULL);
-
-	BC_SIG_ASSERT_LOCKED;
 
 	bc_vec_expand(a, len);
 
@@ -218,17 +182,10 @@ void bc_array_expand(BcVec *a, size_t len) {
 	}
 }
 
-void bc_result_clear(BcResult *r) {
-	r->t = BC_RESULT_TEMP;
-	bc_num_clear(&r->d.n);
-}
-
 #if DC_ENABLED
 void bc_result_copy(BcResult *d, BcResult *src) {
 
 	assert(d != NULL && src != NULL);
-
-	BC_SIG_ASSERT_LOCKED;
 
 	d->t = src->t;
 
@@ -238,9 +195,6 @@ void bc_result_copy(BcResult *d, BcResult *src) {
 		case BC_RESULT_IBASE:
 		case BC_RESULT_SCALE:
 		case BC_RESULT_OBASE:
-#if BC_ENABLE_EXTRA_MATH
-		case BC_RESULT_SEED:
-#endif // BC_ENABLE_EXTRA_MATH
 		{
 			bc_num_createCopy(&d->d.n, &src->d.n);
 			break;
@@ -256,13 +210,13 @@ void bc_result_copy(BcResult *d, BcResult *src) {
 			break;
 		}
 
+		case BC_RESULT_CONSTANT:
 		case BC_RESULT_STR:
 		{
 			memcpy(&d->d.n, &src->d.n, sizeof(BcNum));
 			break;
 		}
 
-		case BC_RESULT_ZERO:
 		case BC_RESULT_ONE:
 		{
 			// Do nothing.
@@ -274,7 +228,8 @@ void bc_result_copy(BcResult *d, BcResult *src) {
 		case BC_RESULT_LAST:
 		{
 #ifndef NDEBUG
-			abort();
+			assert(false);
+			break;
 #endif // NDEBUG
 		}
 #endif // BC_ENABLED
@@ -286,8 +241,6 @@ void bc_result_free(void *result) {
 
 	BcResult *r = (BcResult*) result;
 
-	BC_SIG_ASSERT_LOCKED;
-
 	assert(r != NULL);
 
 	switch (r->t) {
@@ -296,9 +249,6 @@ void bc_result_free(void *result) {
 		case BC_RESULT_IBASE:
 		case BC_RESULT_SCALE:
 		case BC_RESULT_OBASE:
-#if BC_ENABLE_EXTRA_MATH
-		case BC_RESULT_SEED:
-#endif // BC_ENABLE_EXTRA_MATH
 		{
 			bc_num_free(&r->d.n);
 			break;
@@ -310,7 +260,7 @@ void bc_result_free(void *result) {
 #endif // BC_ENABLED
 		case BC_RESULT_ARRAY_ELEM:
 		case BC_RESULT_STR:
-		case BC_RESULT_ZERO:
+		case BC_RESULT_CONSTANT:
 		case BC_RESULT_ONE:
 #if BC_ENABLED
 		case BC_RESULT_VOID:

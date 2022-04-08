@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2018-2019 Gavin D. Howard and contributors.
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -42,15 +42,16 @@
 #include <lex.h>
 #include <parse.h>
 
-void dc_main(int argc, char **argv);
+int dc_main(int argc, char **argv);
 
 extern const char dc_help[];
 
-void dc_lex_token(BcLex *l);
+BcStatus dc_lex_token(BcLex *l);
 bool dc_lex_negCommand(BcLex *l);
 
+#if BC_ENABLE_SIGNALS
 extern const char dc_sig_msg[];
-extern const uchar dc_sig_msg_len;
+#endif // BC_ENABLE_SIGNALS
 
 extern const uint8_t dc_lex_regs[];
 extern const size_t dc_lex_regs_len;
@@ -58,8 +59,8 @@ extern const size_t dc_lex_regs_len;
 extern const uint8_t dc_lex_tokens[];
 extern const uint8_t dc_parse_insts[];
 
-void dc_parse_parse(BcParse *p);
-void dc_parse_expr(BcParse *p, uint8_t flags);
+BcStatus dc_parse_parse(BcParse *p);
+BcStatus dc_parse_expr(BcParse *p, uint8_t flags);
 
 #endif // DC_ENABLED
 

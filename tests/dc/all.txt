@@ -1,5 +1,4 @@
 decimal
-length
 add
 subtract
 multiply
@@ -20,4 +19,3 @@ engineering
 vars
 misc
 strings
-rand
