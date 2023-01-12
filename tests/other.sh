@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -34,6 +34,8 @@ testdir=$(dirname "$script")
 
 . "$testdir/../scripts/functions.sh"
 
+outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
+
 # Command-line processing.
 if [ "$#" -ge 2 ]; then
 
@@ -60,8 +62,11 @@ else
 	halt="q"
 fi
 
+mkdir -p "$outputdir"
+
 # For tests later.
 num=100000000000000000000000000000000000000000000000000000000000000000000000000000
+num2="$num"
 numres="$num"
 num70="10000000000000000000000000000000000000000000000000000000000000000000\\
 0000000000"
@@ -72,12 +77,14 @@ if [ "$d" = "bc" ]; then
 	opt="x"
 	lopt="extended-register"
 	line_var="BC_LINE_LENGTH"
+	lltest="line_length()"
 else
 	halt="q"
 	opt="l"
 	lopt="mathlib"
 	line_var="DC_LINE_LENGTH"
 	num="$num pR"
+	lltest="glpR"
 fi
 
 # I use these, so unset them to make the tests work.
@@ -124,7 +131,7 @@ if [ "$d" = "bc" ]; then
 
 	checktest_retcode "$d" "$?" "environment var"
 
-	"$exe" "$@" -e 4 > /dev/null
+	printf 'halt\n' | "$exe" "$@" -e 4 > /dev/null
 
 	err="$?"
 	checktest_retcode "$d" "$?" "environment var"
@@ -135,10 +142,10 @@ if [ "$d" = "bc" ]; then
 
 	unset BC_ENV_ARGS
 
-	redefine_res="$testdir/bc_outputs/redefine.txt"
-	redefine_out="$testdir/bc_outputs/redefine_results.txt"
+	redefine_res="$outputdir/bc_outputs/redefine.txt"
+	redefine_out="$outputdir/bc_outputs/redefine_results.txt"
 
-	outdir=$(dirname "$easter_out")
+	outdir=$(dirname "$redefine_out")
 
 	if [ ! -d "$outdir" ]; then
 		mkdir -p "$outdir"
@@ -146,17 +153,20 @@ if [ "$d" = "bc" ]; then
 
 	printf '5\n0\n' > "$redefine_res"
 
-	"$exe" "$@" --redefine=print -e 'define print(x) { x }' -e 'print(5)' > "$redefine_out"
+	printf 'halt\n' | "$exe" "$@" --redefine=print -e 'define print(x) { x }' -e 'print(5)' > "$redefine_out"
+	err="$?"
 
 	checktest "$d" "$err" "keyword redefinition" "$redefine_res" "$redefine_out"
 
-	"$exe" "$@" -r "abs" -r "else" -e 'abs = 5;else = 0' -e 'abs;else' > "$redefine_out"
+	printf 'halt\n' | "$exe" "$@" -r "abs" -r "else" -e 'abs = 5;else = 0' -e 'abs;else' > "$redefine_out"
+	err="$?"
 
 	checktest "$d" "$err" "keyword redefinition" "$redefine_res" "$redefine_out"
 
 	if [ "$extra_math" -ne 0 ]; then
 
-		"$exe" "$@" -lr abs -e "perm(5, 1)" -e "0" > "$redefine_out"
+		printf 'halt\n' | "$exe" "$@" -lr abs -e "perm(5, 1)" -e "0" > "$redefine_out"
+		err="$?"
 
 		checktest "$d" "$err" "keyword not redefined in builtin library" "$redefine_res" "$redefine_out"
 
@@ -171,6 +181,53 @@ if [ "$d" = "bc" ]; then
 	err="$?"
 
 	checkerrtest "$d" "$err" "Keyword redefinition error without BC_REDEFINE_KEYWORDS" "$redefine_out" "$d"
+
+	printf 'pass\n'
+	printf 'Running multiline comment expression file test...'
+
+	multiline_expr_res=""
+	multiline_expr_out="$outputdir/bc_outputs/multiline_expr_results.txt"
+
+	# tests/bc/misc1.txt happens to have a multiline comment in it.
+	printf 'halt\n' | "$exe" "$@" -f "$testdir/bc/misc1.txt" > "$multiline_expr_out"
+	err="$?"
+
+	checktest "$d" "$err" "multiline comment in expression file" "$testdir/bc/misc1_results.txt" \
+		"$multiline_expr_out"
+
+	printf 'pass\n'
+	printf 'Running multiline comment expression file error test...'
+
+	printf 'halt\n' | "$exe" "$@" -f "$testdir/bc/errors/05.txt" 2> "$multiline_expr_out"
+	err="$?"
+
+	checkerrtest "$d" "$err" "multiline comment in expression file error" \
+		"$multiline_expr_out" "$d"
+
+	printf 'pass\n'
+	printf 'Running multiline string expression file test...'
+
+	# tests/bc/strings.txt happens to have a multiline string in it.
+	printf 'halt\n' | "$exe" "$@" -f "$testdir/bc/strings.txt" > "$multiline_expr_out"
+	err="$?"
+
+	checktest "$d" "$err" "multiline string in expression file" "$testdir/bc/strings_results.txt" \
+		"$multiline_expr_out"
+
+	printf 'pass\n'
+	printf 'Running multiline string expression file error test...'
+
+	printf 'halt\n' | "$exe" "$@" -f "$testdir/bc/errors/16.txt" 2> "$multiline_expr_out"
+	err="$?"
+
+	checkerrtest "$d" "$err" "multiline string in expression file with backslash error" \
+		"$multiline_expr_out" "$d"
+
+	printf 'halt\n' | "$exe" "$@" -f "$testdir/bc/errors/04.txt" 2> "$multiline_expr_out"
+	err="$?"
+
+	checkerrtest "$d" "$err" "multiline string in expression file error" \
+		"$multiline_expr_out" "$d"
 
 	printf 'pass\n'
 
@@ -201,8 +258,8 @@ else
 
 		printf 'Running dc Easter script...'
 
-		easter_res="$testdir/dc_outputs/easter.txt"
-		easter_out="$testdir/dc_outputs/easter_results.txt"
+		easter_res="$outputdir/dc_outputs/easter.txt"
+		easter_out="$outputdir/dc_outputs/easter_results.txt"
 
 		outdir=$(dirname "$easter_out")
 
@@ -222,8 +279,8 @@ else
 
 fi
 
-out1="$testdir/../.log_$d.txt"
-out2="$testdir/../.log_${d}_test.txt"
+out1="$outputdir/${d}_outputs/${d}_other.txt"
+out2="$outputdir/${d}_outputs/${d}_other_test.txt"
 
 printf 'Running %s line length tests...' "$d"
 
@@ -232,16 +289,31 @@ printf '%s\n' "$numres" > "$out1"
 export "$line_var"=80
 printf '%s\n' "$num" | "$exe" "$@" > "$out2"
 
-checktest "$d" "$?" "environment var" "$out1" "$out2"
+checktest "$d" "$?" "line length" "$out1" "$out2"
 
 printf '%s\n' "$num70" > "$out1"
 
 export "$line_var"=2147483647
 printf '%s\n' "$num" | "$exe" "$@" > "$out2"
 
-checktest "$d" "$?" "environment var" "$out1" "$out2"
+checktest "$d" "$?" "line length 2" "$out1" "$out2"
+
+printf '%s\n' "$num2" > "$out1"
+
+export "$line_var"=62
+printf '%s\n' "$num" | "$exe" "$@" -L > "$out2"
+
+checktest "$d" "$?" "line length 3" "$out1" "$out2"
+
+printf '0\n' > "$out1"
+printf '%s\n' "$lltest" | "$exe" "$@" -L > "$out2"
+
+checktest "$d" "$?" "line length 3" "$out1" "$out2"
 
 printf 'pass\n'
+
+printf '%s\n' "$numres" > "$out1"
+export "$line_var"=2147483647
 
 printf 'Running %s arg tests...' "$d"
 
@@ -273,6 +345,26 @@ printf '%s\n' "$halt" | "$exe" "$@" -v > /dev/null
 checktest_retcode "$d" "$?" "arg"
 printf '%s\n' "$halt" | "$exe" "$@" -V > /dev/null
 checktest_retcode "$d" "$?" "arg"
+
+out=$(printf '0.1\n-0.1\n1.1\n-1.1\n0.1\n-0.1\n')
+printf '%s\n' "$out" > "$out1"
+
+if [ "$d" = "bc" ]; then
+	data=$(printf '0.1\n-0.1\n1.1\n-1.1\n.1\n-.1\n')
+else
+	data=$(printf '0.1pR\n_0.1pR\n1.1pR\n_1.1pR\n.1pR\n_.1pR\n')
+fi
+
+printf '%s\n' "$data" | "$exe" "$@" -z > "$out2"
+checktest "$d" "$?" "leading zero" "$out1" "$out2"
+
+if [ "$d" = "bc" ] && [ "$extra_math" -ne 0 ]; then
+
+	printf '%s\n' "$halt" | "$exe" "$@" -lz "$testdir/bc/leadingzero.txt" > "$out2"
+
+	checktest "$d" "$?" "leading zero script" "$testdir/bc/leadingzero_results.txt" "$out2"
+
+fi
 
 "$exe" "$@" -f "saotehasotnehasthistohntnsahxstnhalcrgxgrlpyasxtsaosysxsatnhoy.txt" > /dev/null 2> "$out2"
 err="$?"
@@ -326,6 +418,91 @@ checkerrtest "$d" "$err" "colon long option" "$out2" "$d"
 
 printf 'pass\n'
 
+printf 'Running %s builtin variable arg tests...' "$d"
+
+if [ "$extra_math" -ne 0 ]; then
+
+	out=$(printf '14\n15\n16\n17.25\n')
+	printf '%s\n' "$out" > "$out1"
+
+	if [ "$d" = "bc" ]; then
+		data=$(printf 's=scale;i=ibase;o=obase;t=seed@2;ibase=A;obase=A;s;i;o;t;')
+	else
+		data=$(printf 'J2@OIKAiAopRpRpRpR')
+	fi
+
+	printf '%s\n' "$data" | "$exe" "$@" -S14 -I15 -O16 -E17.25 > "$out2"
+	checktest "$d" "$?" "builtin variable args" "$out1" "$out2"
+
+	printf '%s\n' "$data" | "$exe" "$@" --scale=14 --ibase=15 --obase=16 --seed=17.25 > "$out2"
+	checktest "$d" "$?" "builtin variable long args" "$out1" "$out2"
+
+else
+
+	out=$(printf '14\n15\n16\n')
+	printf '%s\n' "$out" > "$out1"
+
+	if [ "$d" = "bc" ]; then
+		data=$(printf 's=scale;i=ibase;o=obase;ibase=A;obase=A;s;i;o;')
+	else
+		data=$(printf 'OIKAiAopRpRpR')
+	fi
+
+	printf '%s\n' "$data" | "$exe" "$@" -S14 -I15 -O16 > "$out2"
+	checktest "$d" "$?" "builtin variable args" "$out1" "$out2"
+
+	printf '%s\n' "$data" | "$exe" "$@" --scale=14 --ibase=15 --obase=16 > "$out2"
+	checktest "$d" "$?" "builtin variable long args" "$out1" "$out2"
+
+fi
+
+if [ "$d" = "bc" ]; then
+
+	out=$(printf '100\n')
+	printf '%s\n' "$out" > "$out1"
+
+	printf 'scale\n' | "$exe" "$@" -S100 -l > "$out2"
+	checktest "$d" "$?" "builtin variable args with math lib" "$out1" "$out2"
+
+	printf 'scale\n' | "$exe" "$@" --scale=100 --mathlib > "$out2"
+	checktest "$d" "$?" "builtin variable long args with math lib" "$out1" "$out2"
+
+	export BC_ENV_ARGS="-l"
+
+	printf 'scale\n' | "$exe" "$@" -S100 > "$out2"
+	checktest "$d" "$?" "builtin variable args with math lib env arg" "$out1" "$out2"
+
+	printf 'scale\n' | "$exe" "$@" --scale=100 > "$out2"
+	checktest "$d" "$?" "builtin variable long args with math lib env arg" "$out1" "$out2"
+
+	export BC_ENV_ARGS="-S100"
+
+	printf 'scale\n' | "$exe" "$@" -l > "$out2"
+	checktest "$d" "$?" "builtin variable args with math lib arg" "$out1" "$out2"
+
+	export BC_ENV_ARGS="--scale=100"
+
+	printf 'scale\n' | "$exe" "$@" -l > "$out2"
+	checktest "$d" "$?" "builtin variable long args with math lib arg" "$out1" "$out2"
+
+fi
+
+printf 'scale\n' | "$exe" "$@" --scale=18923c.rlg > /dev/null 2> "$out2"
+err="$?"
+
+checkerrtest "$d" "$err" "invalid command-line arg for builtin variable" "$out2" "$d"
+
+if [ "$extra_math" -ne 0 ]; then
+
+	printf 'seed\n' | "$exe" "$@" --seed=18923c.rlg > /dev/null 2> "$out2"
+	err="$?"
+
+	checkerrtest "$d" "$err" "invalid command-line arg for seed" "$out2" "$d"
+
+fi
+
+printf 'pass\n'
+
 printf 'Running %s directory test...' "$d"
 
 "$exe" "$@" "$testdir" > /dev/null 2> "$out2"
@@ -358,7 +535,7 @@ printf 'pass\n'
 if [ "$d" = "bc" ]; then
 
 	printf 'Running %s limits tests...' "$d"
-	printf 'limits\n' | "$exe" "$@" > "$out2" /dev/null 2>&1
+	printf 'limits\n' | "$exe" "$@" /dev/null > "$out2" 2>&1
 
 	checktest_retcode "$d" "$?" "limits"
 
