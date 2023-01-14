@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -34,6 +34,8 @@ testdir=$(dirname "$script")
 
 . "$testdir/../scripts/functions.sh"
 
+outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
+
 # Command-line processing.
 if [ "$#" -lt 1 ]; then
 	printf 'usage: %s dir [exe [args...]]\n' "$0"
@@ -58,7 +60,7 @@ name="$testdir/$d/read.txt"
 results="$testdir/$d/read_results.txt"
 errors="$testdir/$d/read_errors.txt"
 
-out="$testdir/${d}_outputs/read_results.txt"
+out="$outputdir/${d}_outputs/read_results.txt"
 outdir=$(dirname "$out")
 
 # Make sure the directory exists.

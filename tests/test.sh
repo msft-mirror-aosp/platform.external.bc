@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -34,6 +34,8 @@ script="$0"
 testdir=$(dirname "$script")
 
 . "$testdir/../scripts/functions.sh"
+
+outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
 
 # Command-line processing.
 if [ "$#" -lt 2 ]; then
@@ -74,7 +76,7 @@ else
 	exe="$testdir/../bin/$d"
 fi
 
-out="$testdir/${d}_outputs/${t}_results.txt"
+out="$outputdir/${d}_outputs/${t}_results.txt"
 outdir=$(dirname "$out")
 
 # Make sure the directory exists.
@@ -121,9 +123,11 @@ if [ ! -f "$results" ]; then
 	printf 'done\n'
 fi
 
-# We set this here because GNU dc does not have it.
-if [ "$d" = "dc" ]; then
-	options="-x"
+# We set this here because GNU bc and dc does not have these options.
+if [ "$d" = "bc" ]; then
+	options="-lqc"
+else
+	options="-xc"
 fi
 
 export $var=string
