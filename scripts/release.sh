@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -29,28 +29,23 @@
 
 # For OpenBSD, run using the following:
 #
-# scripts/release.sh 1 0 1 0 0 0 0 1 0 0 0 0
+# scripts/release.sh 1 0 0 1 0 0 0 0 1 0 0 0 0 0 0 1 0
 #
 # For FreeBSD, run using the following:
 #
-# scripts/release.sh 1 0 1 0 0 0 0 1 0 1 0 0
-#
-# There is one problem with running this script on FreeBSD: it takes overcommit
-# to the extreme. This means that some tests that try to create allocation
-# failures instead make bc and dc crash. So running this script on FreeBSD does
-# not work right now.
+# scripts/release.sh 1 1 0 1 0 0 0 0 1 0 1 0 1 0 0 1 1
 #
 # For Linux, run two separate ones (in different checkouts), like so:
 #
-# scripts/release.sh 1 1 1 0 1 0 0 1 0 1 0 1
-# scripts/release.sh 1 1 0 1 0 1 0 1 0 1 0 0
+# scripts/release.sh 1 1 1 1 0 1 0 0 1 0 1 0 1 0 0 1 1
+# cd build; ../scripts/release.sh 1 1 1 0 1 0 1 0 1 0 1 0 0 1 1 1 1
 #
-# Yes, I usually do sanitizers with Clang and Valgrind with GCC.
+# Yes, I usually do sanitizers with Clang and Valgrind with GCC, and I also do
+# out-of-source builds with GCC.
 #
-# To run sanitizers or Valgrind with generated tests, use the following:
-#
-# scripts/release.sh 1 1 1 0 1 0 0 1 0 1 0 1
-# scripts/release.sh 1 1 0 1 0 1 0 1 0 1 0 0
+# The reason I run history tests with GCC and not with Clang is because Clang
+# already runs slower as a result of running with sanitizers, and the history
+# tests are a little sensitive to load on a system.
 #
 # If this script fails on any platform when starting the Karatsuba test, check
 # that Python is installed, especially if the error says something like:
@@ -59,9 +54,11 @@
 # Print the usage and exit with an error. Each parameter should be an integer.
 # Non-zero activates, and zero deactivates.
 usage() {
-	printf 'usage: %s [run_tests] [generate_tests] [test_with_clang] [test_with_gcc] \n' "$script"
-	printf '          [run_sanitizers] [run_valgrind] [test_settings] [run_64_bit] \n'
-	printf '          [run_gen_script] [test_c11] [test_128_bit] [test_computed_goto]\n'
+	printf 'usage: %s [run_tests] [generate_tests] [run_problematic_tests] \n' "$script"
+	printf '          [test_with_clang] [test_with_gcc] [run_sanitizers] [run_valgrind] \n'
+	printf '          [test_settings] [run_64_bit] [run_gen_script] [test_c11] \n'
+	printf '          [test_128_bit] [test_computed_goto] [test_karatsuba] [test_history] \n'
+	printf '          [test_editline] [test_readline]\n'
 	exit 1
 }
 
@@ -116,15 +113,38 @@ configure() {
 		_configure_configure_flags="-G $_configure_configure_flags"
 	fi
 
+	# Make sure to skip problematic tests if necessary.
+	if [ "$problematic_tests" -eq 0 ]; then
+		_configure_configure_flags="-P $_configure_configure_flags"
+	fi
+
 	# Choose the right extra flags.
 	if [ "$_configure_CC" = "clang" ]; then
+
 		_configure_CFLAGS="$clang_flags $_configure_CFLAGS"
+
+		# We need to quiet this warning from Clang because the configure.sh docs
+		# have this warning, so people should know. Also, I want this script to
+		# work.
+		if [ "$_configure_GEN_HOST" -eq 0 ]; then
+			_configure_CFLAGS="$_configure_CFLAGS -Wno-overlength-strings"
+		fi
+
 	elif [ "$_configure_CC" = "gcc" ]; then
+
 		_configure_CFLAGS="$gcc_flags $_configure_CFLAGS"
+
+		# We need to quiet this warning from GCC because the configure.sh docs
+		# have this warning, so people should know. Also, I want this script to
+		# work.
+		if [ "$_configure_GEN_HOST" -eq 0 ]; then
+			_configure_CFLAGS="$_configure_CFLAGS -Wno-overlength-strings"
+		fi
+
 	fi
 
 	# Print the header and do the job.
-	_configure_header=$(printf 'Running ./configure.sh %s ...' "$_configure_configure_flags")
+	_configure_header=$(printf 'Running configure.sh %s ...' "$_configure_configure_flags")
 	_configure_header=$(printf "$_configure_header\n    CC=\"%s\"\n" "$_configure_CC")
 	_configure_header=$(printf "$_configure_header\n    CFLAGS=\"%s\"\n" "$_configure_CFLAGS")
 	_configure_header=$(printf "$_configure_header\n    LONG_BIT=%s" "$_configure_LONG_BIT")
@@ -132,7 +152,7 @@ configure() {
 
 	header "$_configure_header"
 	CFLAGS="$_configure_CFLAGS" CC="$_configure_CC" GEN_HOST="$_configure_GEN_HOST" \
-		LONG_BIT="$_configure_LONG_BIT" ./configure.sh $_configure_configure_flags > /dev/null
+		LONG_BIT="$_configure_LONG_BIT" "$real/configure.sh" $_configure_configure_flags > /dev/null
 }
 
 # Build with make. This function also captures and outputs any warnings if they
@@ -169,14 +189,23 @@ build() {
 
 	header "$_build_header"
 
-	# Capture and print warnings.
-	do_make > /dev/null 2> "$scriptdir/../.test.txt"
+	set +e
 
-	if [ -s "$scriptdir/../.test.txt" ]; then
+	# Capture and print warnings.
+	do_make > /dev/null 2> "./.test.txt"
+	err=$?
+
+	set -e
+
+	if [ -s "./.test.txt" ]; then
 		printf '%s generated warning(s):\n' "$_build_CC"
 		printf '\n'
-		cat "$scriptdir/../.test.txt"
+		cat "./.test.txt"
 		exit 1
+	fi
+
+	if [ "$err" -ne 0 ]; then
+		exit "$err"
 	fi
 }
 
@@ -188,7 +217,12 @@ runtest() {
 	if [ "$#" -gt 0 ]; then
 		do_make "$@"
 	else
+
 		do_make test
+
+		if [ "$test_history" -ne 0 ]; then
+			do_make test_history
+		fi
 	fi
 }
 
@@ -301,6 +335,21 @@ runconfigseries() {
 		runconfigtests "$_runconfigseries_CFLAGS -DBC_RAND_BUILTIN=0" "$_runconfigseries_CC" \
 			"$_runconfigseries_configure_flags" 1 64 "$_runconfigseries_run_tests"
 
+		# Test Editline and Readline if history is not turned off.
+		if [ "${_runconfigseries_configure_flags#*H}" = "${_runconfigseries_configure_flags}" ]; then
+
+			if [ "$test_editline" -ne 0 ]; then
+				runconfigtests "$_runconfigseries_CFLAGS -DBC_RAND_BUILTIN=0" "$_runconfigseries_CC" \
+					"$_runconfigseries_configure_flags -e" 1 64 "$_runconfigseries_run_tests"
+			fi
+
+			if [ "$test_readline" -ne 0 ]; then
+				runconfigtests "$_runconfigseries_CFLAGS -DBC_RAND_BUILTIN=0" "$_runconfigseries_CC" \
+					"$_runconfigseries_configure_flags -r" 1 64 "$_runconfigseries_run_tests"
+			fi
+
+		fi
+
 	fi
 
 	runconfigtests "$_runconfigseries_CFLAGS" "$_runconfigseries_CC" \
@@ -402,13 +451,13 @@ runlibtests() {
 	build "$_runlibtests_CFLAGS" "$_runlibtests_CC" "$_runlibtests_configure_flags" 1 64
 
 	if [ "$_runlibtests_run_tests" -ne 0 ]; then
-		runtest
+		runtest test
 	fi
 
 	build "$_runlibtests_CFLAGS" "$_runlibtests_CC" "$_runlibtests_configure_flags" 1 32
 
 	if [ "$_runlibtests_run_tests" -ne 0 ]; then
-		runtest
+		runtest test
 	fi
 }
 
@@ -497,7 +546,6 @@ debug() {
 		runtests "$debug" "$_debug_CC" "-g" "$_debug_run_tests"
 	fi
 
-
 	if [ "$_debug_CC" = "clang" -a "$run_sanitizers" -ne 0 ]; then
 		runlibtests "$debug -fsanitize=undefined" "$_debug_CC" "-gm" "$_debug_run_tests"
 	else
@@ -584,16 +632,32 @@ build_set() {
 	minsize "$_build_set_CC" "$_build_set_run_tests"
 }
 
+# Unset all bc and dc environment variables. This is intended to allow this
+# script to run in a clean environment.
+unset POSIXLY_CORRECT
+unset BC_BANNER
+unset BC_ENV_ARGS
+unset DC_ENV_ARGS
+unset BC_LINE_LENGTH
+unset DC_LINE_LENGTH
+unset BC_SIGINT_RESET
+unset DC_SIGINT_RESET
+unset BC_TTY_MODE
+unset DC_TTY_MODE
+unset BC_PROMPT
+unset DC_PROMPT
+unset BC_EXPR_EXIT
+unset DC_EXPR_EXIT
+unset BC_DIGIT_CLAMP
+unset DC_DIGIT_CLAMP
+
 # Set some strict warning flags. Clang's -Weverything can be way too strict, so
 # we actually have to turn off some things.
-clang_flags="-Weverything -Wno-padded -Wno-switch-enum -Wno-format-nonliteral"
-clang_flags="$clang_flags -Wno-cast-align -Wno-missing-noreturn -Wno-disabled-macro-expansion"
-clang_flags="$clang_flags -Wno-unreachable-code -Wno-unreachable-code-return"
-clang_flags="$clang_flags -Wno-implicit-fallthrough -Wno-unused-macros -Wno-gnu-label-as-value"
-gcc_flags="-Wno-maybe-uninitialized -Wno-clobbered"
+clang_flags="-Weverything -Wno-padded"
+gcc_flags="-Wno-clobbered"
 
 # Common CFLAGS.
-cflags="-Wall -Wextra -Werror -pedantic -Wno-conditional-uninitialized"
+cflags="-Wall -Wextra -Werror -pedantic"
 
 # Common debug and release flags.
 debug="$cflags -fno-omit-frame-pointer"
@@ -603,6 +667,8 @@ set -e
 
 script="$0"
 scriptdir=$(dirname "$script")
+
+real=$(realpath "$scriptdir/../")
 
 # Whether to run tests.
 if [ "$#" -gt 0 ]; then
@@ -619,6 +685,14 @@ if [ "$#" -gt 0 ]; then
 	shift
 else
 	gen_tests=1
+fi
+
+# Whether to run problematic tests. This needs to be off on FreeBSD.
+if [ "$#" -gt 0 ]; then
+	problematic_tests="$1"
+	shift
+else
+	problematic_tests=1
 fi
 
 # Whether to test with clang.
@@ -701,6 +775,38 @@ else
 	test_computed_goto=0
 fi
 
+# Whether to test history or not.
+if [ "$#" -gt 0 ]; then
+	test_karatsuba="$1"
+	shift
+else
+	test_karatsuba=1
+fi
+
+# Whether to test history or not.
+if [ "$#" -gt 0 ]; then
+	test_history="$1"
+	shift
+else
+	test_history=0
+fi
+
+# Whether to test editline or not.
+if [ "$#" -gt 0 ]; then
+	test_editline="$1"
+	shift
+else
+	test_editline=0
+fi
+
+# Whether to test editline or not.
+if [ "$#" -gt 0 ]; then
+	test_readline="$1"
+	shift
+else
+	test_readline=0
+fi
+
 if [ "$run_64_bit" -ne 0 ]; then
 	bits=64
 else
@@ -712,8 +818,6 @@ if [ "$test_computed_goto" -eq 0 ]; then
 	gcc_flags="-DBC_NO_COMPUTED_GOTO $gcc_flags"
 fi
 
-cd "$scriptdir/.."
-
 # Setup a default compiler.
 if [ "$test_with_clang" -ne 0 ]; then
 	defcc="clang"
@@ -723,7 +827,7 @@ else
 	defcc="c99"
 fi
 
-export ASAN_OPTIONS="abort_on_error=1,allocator_may_return_null=1"
+export ASAN_OPTIONS="abort_on_error=1,allocator_may_return_null=1:strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_invalid_pointer_pairs=2"
 export UBSAN_OPTIONS="print_stack_trace=1,silence_unsigned_overflow=1"
 
 build "$debug -std=c99" "$defcc" "-g" "1" "$bits"
@@ -750,7 +854,9 @@ if [ "$run_tests" -ne 0 ]; then
 	build "$release" "$defcc" "-O3" "1" "$bits"
 
 	# Run karatsuba.
-	karatsuba
+	if [ "$test_karatsuba" -ne 0 ]; then
+		karatsuba
+	fi
 
 	# Valgrind.
 	if [ "$run_valgrind" -ne 0 -a "$test_with_gcc" -ne 0 ]; then
@@ -759,21 +865,5 @@ if [ "$run_tests" -ne 0 ]; then
 
 	printf '\n'
 	printf 'Tests successful.\n'
-
-	# I just assume that I am going to be fuzzing when I am done.
-	header "Building for AFL++..."
-
-	"$scriptdir/fuzz_prep.sh"
-
-	printf '\n'
-	printf 'Ready for scripts/randmath.py and for fuzzing.\n'
-	printf '\n'
-	printf 'Run scripts/randmath.py if you changed any math code.\n'
-	printf '\n'
-	printf 'Then if there are no problems, run the fuzzer.\n'
-	printf '\n'
-	printf 'Then run `scripts/fuzz_prep.sh -a`.\n'
-	printf '\n'
-	printf 'Then run `scripts/afl.py --asan`.\n'
 
 fi
