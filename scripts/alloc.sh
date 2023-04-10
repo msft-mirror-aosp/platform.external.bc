@@ -45,6 +45,8 @@
 script="$0"
 scriptdir=$(dirname "$script")
 
+. "$scriptdir/functions.sh"
+
 export LANG=C
 
 virtlimit=1000000
@@ -72,13 +74,13 @@ define g(n) {
 iterations=2000000
 
 for (l=0; l < 100; l++) {
-    iterations
-    j = f(0, iterations$)
-    iterations += 100000
-    print "here\n"
-    n=10^235929600
-    g(n)
-    print "success\n"
-    n=0
+	iterations
+	j = f(0, iterations$)
+	iterations += 100000
+	print "here\n"
+	n=10^235929600
+	g(n)
+	print "success\n"
+	n=0
 }
 *EOF
