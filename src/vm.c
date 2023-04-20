@@ -622,8 +622,12 @@ bc_vm_envLen(const char* var)
 	if (num)
 	{
 		// Parse it and clamp it if needed.
-		len = (size_t) atoi(lenv) - 1;
-		if (len == 1 || len >= UINT16_MAX) len = BC_NUM_PRINT_WIDTH;
+		len = (size_t) strtol(lenv, NULL, 10);
+		if (len != 0)
+		{
+			len -= 1;
+			if (len < 2 || len >= UINT16_MAX) len = BC_NUM_PRINT_WIDTH;
+		}
 	}
 	// Set the default.
 	else len = BC_NUM_PRINT_WIDTH;
@@ -643,12 +647,14 @@ bc_vm_shutdown(void)
 	if (vm->catalog != BC_VM_INVALID_CATALOG) catclose(vm->catalog);
 #endif // BC_ENABLE_NLS
 
+#if !BC_ENABLE_LIBRARY
 #if BC_ENABLE_HISTORY
 	// This must always run to ensure that the terminal is back to normal, i.e.,
 	// has raw mode disabled. But we should only do it if we did not have a bad
 	// terminal because history was not initialized if it is a bad terminal.
 	if (BC_TTY && !vm->history.badTerm) bc_history_free(&vm->history);
 #endif // BC_ENABLE_HISTORY
+#endif // !BC_ENABLE_LIBRARY
 
 #if BC_DEBUG
 #if !BC_ENABLE_LIBRARY
