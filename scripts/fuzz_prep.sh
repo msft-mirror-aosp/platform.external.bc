@@ -57,11 +57,12 @@ asan=0
 while getopts "a" opt; do
 
 	case "$opt" in
-		a) asan=1 ; shift ;;
+		a) asan=1 ;;
 		?) usage "Invalid option: $opt" ;;
 	esac
 
 done
+shift $(($OPTIND - 1))
 
 if [ $# -lt 1 ]; then
 	CC=afl-clang-lto
@@ -76,11 +77,16 @@ cd "$scriptdir/.."
 
 set -e
 
+CFLAGS="-flto -fstack-protector-all -fsanitize=shadow-call-stack -ffixed-x18 -fsanitize=cfi -fvisibility=hidden"
+
 if [ "$asan" -ne 0 ]; then
-	CFLAGS="-flto -fsanitize=address"
-else
-	CFLAGS="-flto"
+	CFLAGS="$CFLAGS -fsanitize=address"
 fi
+
+# These are to get better instrumentation.
+export AFL_LLVM_LAF_SPLIT_SWITCHES=1
+export AFL_LLVM_LAF_TRANSFORM_COMPARES=1
+export AFL_LLVM_LAF_SPLIT_COMPARES=1
 
 # We want a debug build because asserts are counted as crashes too.
 CC="$CC" CFLAGS="$CFLAGS" ./configure.sh -gO3 -z

@@ -1,6 +1,6 @@
 # Development
 
-Updated: 13 Feb 2023
+Updated: 27 Mar 2023
 
 This document is meant for the day when I (Gavin D. Howard) get [hit by a
 bus][1]. In other words, it's meant to make the [bus factor][1] a non-issue.
@@ -65,6 +65,8 @@ about things like fuzzing, [`scan-build`][19], [valgrind][20],
 [AddressSanitizer][21] (and the other sanitizers), and many other things.
 
 One of my happiest moments was when my `bc` was made the default in FreeBSD.
+Another happiest moment was when I found out that my `bc` had shipped with Mac
+OSX Ventura, without my knowledge.
 
 But since I believe in [finishing the software I write][22], I have done less
 work on `bc` over time, though there are still times when I put a lot of effort
@@ -894,6 +896,8 @@ data structures.
 Vectors are what do the heavy lifting in almost all of `bc`'s data structures.
 Even the maps of identifiers and arrays use vectors.
 
+The code associated with this header is in [`src/vector.c`][228].
+
 #### `version.h`
 
 This header defines the version of `bc`.
@@ -1057,7 +1061,9 @@ template, and the manpage generated from the markdown version.
 ### `scripts/`
 
 This folder contains helper scripts. Most of them are written in pure [POSIX
-`sh`][72], but one ([`karatsuba.py`][78]) is written in Python 3.
+`sh`][72], but three ([`afl.py`][94], [`karatsuba.py`][78], and
+[`randmath.py`][95]) are written in Python 3, and one ([`ministat.c`][223]) is
+written in C. [`ministat.c`][223] in particular is copied from elsewhere.
 
 For more information about the shell scripts, see [POSIX Shell Scripts][76].
 
@@ -2051,7 +2057,7 @@ directory of all other test directories for each calculator.
 
 #### `bc` Standard Tests
 
-The list of current (17 July 2022) standard tests for `bc` is below:
+The list of current (27 February 2023) standard tests for `bc` is below:
 
 decimal
 
@@ -2205,6 +2211,10 @@ bessel
 
 :   Tests the `j()` function in the math library.
 
+fib
+
+:   Tests the `fib()` Fibonacci function in the extended math library.
+
 arrays
 
 :   Test arrays.
@@ -2249,6 +2259,10 @@ void
 rand
 
 :   Tests the pseudo-random number generator and its special stack handling.
+
+rand_limits
+
+:   Tests the limits of the pseudo-random number generator `irand()`.
 
 recursive_arrays
 
@@ -2305,7 +2319,7 @@ line_loop_quit2
 
 #### `dc` Standard Tests
 
-The list of current (17 July 2022) standard tests for `dc` is below:
+The list of current (27 February 2023) standard tests for `dc` is below:
 
 decimal
 
@@ -2465,7 +2479,7 @@ to put it on the same line as others.
 
 #### `bc` Script Tests
 
-The list of current (17 July 2022) script tests for `bc` is below:
+The list of current (27 February 2023) script tests for `bc` is below:
 
 print.bc
 
@@ -2490,6 +2504,11 @@ add.bc
 parse.bc
 
 :   Tests parsing even harder than the parse standard test.
+
+root.bc
+
+:   Tests that `root()` and `cbrt()` do not go into an infinite loop on a
+    pathological case found by a user.
 
 array.bc
 
@@ -2549,7 +2568,7 @@ ifs2.bc
 
 #### `dc` Script Tests
 
-The list of current (17 July 2022) script tests for `dc` is below:
+The list of current (27 February 2023) script tests for `dc` is below:
 
 prime.dc
 
@@ -5207,3 +5226,4 @@ However, where possible, errors are returned directly.
 [225]: #allsh
 [226]: #errorssh
 [227]: #errorsh
+[228]: #vectorc

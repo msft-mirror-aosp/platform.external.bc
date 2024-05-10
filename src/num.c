@@ -2929,14 +2929,14 @@ exit:
 #endif // BC_ENABLE_EXTRA_MATH
 
 /**
- * Converts a number from limbs with base BC_BASE_POW to base @a pow, where
- * @a pow is obase^N.
+ * Takes a number with limbs with base BC_BASE_POW and converts the limb at the
+ * given index to base @a pow, where @a pow is obase^N.
  * @param n    The number to convert.
  * @param rem  BC_BASE_POW - @a pow.
  * @param pow  The power of obase we will convert the number to.
  * @param idx  The index of the number to start converting at. Doing the
  *             conversion is O(n^2); we have to sweep through starting at the
- *             least significant limb
+ *             least significant limb.
  */
 static void
 bc_num_printFixup(BcNum* restrict n, BcBigDig rem, BcBigDig pow, size_t idx)
@@ -2998,8 +2998,8 @@ bc_num_printFixup(BcNum* restrict n, BcBigDig rem, BcBigDig pow, size_t idx)
 }
 
 /**
- * Prepares a number for printing in a base that is not a divisor of
- * BC_BASE_POW. This basically converts the number from having limbs of base
+ * Prepares a number for printing in a base that does not have BC_BASE_POW as a
+ * power. This basically converts the number from having limbs of base
  * BC_BASE_POW to limbs of pow, where pow is obase^N.
  * @param n    The number to prepare for printing.
  * @param rem  The remainder of BC_BASE_POW when divided by a power of the base.
@@ -3515,8 +3515,9 @@ bc_num_print(BcNum* restrict n, BcBigDig base, bool newline)
 		// Print the sign.
 		if (BC_NUM_NEG(n)) bc_num_putchar('-', true);
 
-		// Print the leading zero if necessary.
-		if (BC_Z && BC_NUM_RDX_VAL(n) == n->len)
+		// Print the leading zero if necessary. We don't print when using
+		// scientific or engineering modes.
+		if (BC_Z && BC_NUM_RDX_VAL(n) == n->len && base != 0 && base != 1)
 		{
 			bc_num_printHex(0, 1, false, !newline);
 		}
@@ -3815,7 +3816,7 @@ void
 bc_num_irand(BcNum* restrict a, BcNum* restrict b, BcRNG* restrict rng)
 {
 	BcNum atemp;
-	size_t i, len;
+	size_t i;
 
 	assert(a != b);
 
@@ -3835,24 +3836,76 @@ bc_num_irand(BcNum* restrict a, BcNum* restrict b, BcRNG* restrict rng)
 	assert(atemp.num != NULL);
 	assert(atemp.len);
 
-	len = atemp.len - 1;
-
-	// Just generate a random number for each limb.
-	for (i = 0; i < len; ++i)
+	if (atemp.len > 2)
 	{
-		b->num[i] = (BcDig) bc_rand_bounded(rng, BC_BASE_POW);
+		size_t len;
+
+		len = atemp.len - 2;
+
+		// Just generate a random number for each limb.
+		for (i = 0; i < len; i += 2)
+		{
+			BcRand dig;
+
+			dig = bc_rand_bounded(rng, BC_BASE_RAND_POW);
+
+			b->num[i] = (BcDig) (dig % BC_BASE_POW);
+			b->num[i + 1] = (BcDig) (dig / BC_BASE_POW);
+		}
+	}
+	else
+	{
+		// We need this set.
+		i = 0;
 	}
 
-	// Do the last digit explicitly because the bound must be right. But only
-	// do it if the limb does not equal 1. If it does, we have already hit the
-	// limit.
-	if (atemp.num[i] != 1)
+	// This will be true if there's one full limb after the two limb groups.
+	if (i == atemp.len - 2)
 	{
-		b->num[i] = (BcDig) bc_rand_bounded(rng, (BcRand) atemp.num[i]);
-		b->len = atemp.len;
+		// Increment this for easy use.
+		i += 1;
+
+		// If the last digit is not one, we need to set a bound for it
+		// explicitly. Since there's still an empty limb, we need to fill that.
+		if (atemp.num[i] != 1)
+		{
+			BcRand dig;
+			BcRand bound;
+
+			// Set the bound to the bound of the last limb times the amount
+			// needed to fill the second-to-last limb as well.
+			bound = ((BcRand) atemp.num[i]) * BC_BASE_POW;
+
+			dig = bc_rand_bounded(rng, bound);
+
+			// Fill the last two.
+			b->num[i - 1] = (BcDig) (dig % BC_BASE_POW);
+			b->num[i] = (BcDig) (dig / BC_BASE_POW);
+
+			// Ensure that the length will be correct. If the last limb is zero,
+			// then the length needs to be one less than the bound.
+			b->len = atemp.len - (b->num[i] == 0);
+		}
+		// Here the last limb *is* one, which means the last limb does *not*
+		// need to be filled. Also, the length needs to be one less because the
+		// last limb is 0.
+		else
+		{
+			b->num[i - 1] = (BcDig) bc_rand_bounded(rng, BC_BASE_POW);
+			b->len = atemp.len - 1;
+		}
 	}
-	// We want 1 less len in the case where we skip the last limb.
-	else b->len = len;
+	// Here, there is only one limb to fill.
+	else
+	{
+		// See above for how this works.
+		if (atemp.num[i] != 1)
+		{
+			b->num[i] = (BcDig) bc_rand_bounded(rng, (BcRand) atemp.num[i]);
+			b->len = atemp.len - (b->num[i] == 0);
+		}
+		else b->len = atemp.len - 1;
+	}
 
 	bc_num_clean(b);
 
