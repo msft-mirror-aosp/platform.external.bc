@@ -37,6 +37,10 @@ cc_defaults {
     ":bc-bc_help.c",
     ":bc-lib.c",
   ],
+  exclude_srcs: [
+    "src/bc_fuzzer.c",
+    "src/dc_fuzzer.c",
+  ],
   stl: "none",
 }
 
