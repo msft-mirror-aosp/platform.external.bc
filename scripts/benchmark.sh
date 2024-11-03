@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2024 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -38,6 +38,7 @@ usage() {
 		printf '%s\n\n' "$1"
 	fi
 	printf 'usage: %s [-n<runs>] [-p<pause>] dir benchmark...\n' "$0" 1>&2
+	printf '    -d will delete the generated benchmark(s).\n'
 	printf '    -n runs is how many runs to run the benchmark, default 10.\n'
 	printf '    -p pause is how many seconds to pause before running the benchmarks.\n'
 	printf '\n'
@@ -69,11 +70,13 @@ scriptdir=$(dirname "$script")
 
 runs=10
 pause=0
+delete=0
 
 # Process command-line arguments.
-while getopts "n:p:" opt; do
+while getopts "dn:p:" opt; do
 
 	case "$opt" in
+		d) delete=1 ;;
 		n) runs="$OPTARG" ;;
 		p) pause="$OPTARG" ;;
 		?) usage "Invalid option: $opt" ;;
@@ -138,11 +141,12 @@ fi
 # Generate all of the benchmarks.
 for b in $benchmarks; do
 
-	if [ ! -f "./benchmarks/$d/$b.txt" ]; then
+	if [ "$delete" -ne 0 ] || [ ! -f "./benchmarks/$d/$b.txt" ]; then
 		printf 'Benchmarking generation of benchmarks/%s/%s.txt...\n' "$d" "$b" >&2
 		printf '%s\n' "$halt" | /usr/bin/time -v bin/$d $opts "./benchmarks/$d/$b.$d" \
 			> "./benchmarks/$d/$b.txt"
 	fi
+
 done
 
 # We use this format to make things easier to use with ministat.
