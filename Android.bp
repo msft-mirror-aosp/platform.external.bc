@@ -18,6 +18,8 @@ license {
 cc_defaults {
   name: "bc-defaults",
 
+  // Upstream explicitly builds with c99 rather than cc.
+  c_std: "gnu99",
   cflags: [
     "-include bc-version.h",
     "-DBC_ENABLED=1",
@@ -34,6 +36,10 @@ cc_defaults {
     "src/*.c",
     ":bc-bc_help.c",
     ":bc-lib.c",
+  ],
+  exclude_srcs: [
+    "src/bc_fuzzer.c",
+    "src/dc_fuzzer.c",
   ],
   stl: "none",
 }
