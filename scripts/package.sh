@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2024 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -263,3 +263,15 @@ printf '\n'
 shasum "$projver.tar.xz"
 printf '\n'
 shasum "$projver-windows.zip"
+
+mkdir -p "releases/$projver"
+mv $projver* "releases/$projver"
+
+# Clean up old Windows stuff.
+if [ -d windows ]; then
+	rm -rf windows
+fi
+
+if [ -f vs.zip ]; then
+	rm -rf vs.zip
+fi

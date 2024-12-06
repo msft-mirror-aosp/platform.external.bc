@@ -1,6 +1,6 @@
 # Development
 
-Updated: 27 Mar 2023
+Updated: 22 Dec 2023
 
 This document is meant for the day when I (Gavin D. Howard) get [hit by a
 bus][1]. In other words, it's meant to make the [bus factor][1] a non-issue.
@@ -65,8 +65,8 @@ about things like fuzzing, [`scan-build`][19], [valgrind][20],
 [AddressSanitizer][21] (and the other sanitizers), and many other things.
 
 One of my happiest moments was when my `bc` was made the default in FreeBSD.
-Another happiest moment was when I found out that my `bc` had shipped with Mac
-OSX Ventura, without my knowledge.
+Another happiest moment was when I found out that my `bc` had shipped with macOS
+Ventura, without my knowledge.
 
 But since I believe in [finishing the software I write][22], I have done less
 work on `bc` over time, though there are still times when I put a lot of effort
@@ -564,6 +564,26 @@ heavy functions in `lib.bc`.
 ##### `multiply.bc`
 
 The file to generate the benchmark to benchmark multiplication in `bc`.
+
+##### `newton_raphson_div_large.bc`
+
+The file to generate the benchmark to benchmark the Newton-Raphson division in
+[GitHub PR #72][229] with large numbers.
+
+##### `newton_raphson_div_small.bc`
+
+The file to generate the benchmark to benchmark the Newton-Raphson division in
+[GitHub PR #72][229] with small numbers.
+
+##### `newton_raphson_sqrt_large.bc`
+
+The file to generate the benchmark to benchmark the Newton-Raphson square root
+in [GitHub PR #72][229] with large numbers.
+
+##### `newton_raphson_sqrt_small.bc`
+
+The file to generate the benchmark to benchmark the Newton-Raphson square root
+in [GitHub PR #72][229] with small numbers.
 
 ##### `postfix_incdec.bc`
 
@@ -2485,6 +2505,10 @@ print.bc
 
 :   Tests printing even harder than the print standard test.
 
+print2
+
+:   Tests printing at the extreme edge of line length in various bases.
+
 multiply.bc
 
 :   Tests multiplication even harder than the multiply standard test.
@@ -2638,7 +2662,7 @@ This split is convenient, however, because the tests in each directory are
 treated differently.
 
 The error tests in the standard test directory, which include `errors.txt` for
-both calculators, `posix_errors.txt` for `bc`, and `read_errors.txt` for `dc`,
+both calculators, `posix_errors.txt` for `bc`, and `read_errors.txt` for both,
 are run by [`tests/errors.sh`][226]. It reads them line-by-line and shoves the
 data through `stdin`. Each line is considered a separate test. For this reason,
 there can't be any blank lines in the error files in the standard tests
@@ -5227,3 +5251,4 @@ However, where possible, errors are returned directly.
 [226]: #errorssh
 [227]: #errorsh
 [228]: #vectorc
+[229]: https://github.com/gavinhoward/bc/pull/72
