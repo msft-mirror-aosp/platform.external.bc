@@ -1021,6 +1021,10 @@ second_target_prereqs=""
 second_target_cmd="$default_target_cmd"
 second_target="\$(BC_EXEC)"
 
+test_target="	@if [ \$(BC_ENABLED) -ne 0 ]; then \$(TESTSDIR)/all.sh bc \$(BC_ENABLE_EXTRA_MATH) 1 \$(GENERATE_TESTS) \$(PROBLEMATIC_TESTS) \$(BC_EXEC); fi
+	@if [ \$(DC_ENABLED) -ne 0 ]; then \$(TESTSDIR)/all.sh dc \$(BC_ENABLE_EXTRA_MATH) 1 \$(GENERATE_TESTS) \$(PROBLEMATIC_TESTS) \$(DC_EXEC); fi"
+test_prereq=""
+
 # This if/else if chain is for setting the defaults that change based on whether
 # the library is being built, bc only, dc only, or both calculators.
 if [ "$library" -ne 0 ]; then
@@ -1035,10 +1039,17 @@ if [ "$library" -ne 0 ]; then
 	default_target_cmd="ar -r -cu \$(LIBBC) \$(OBJ)"
 	default_target="\$(LIBBC)"
 
+	second_target_prereqs="\$(LIBBC) \$(BIN)/bcl.o"
+	second_target_cmd="\$(CC) \$(CFLAGS) \$(BIN)/bcl.o \$(LIBBC) \$(LDFLAGS) -o \$(BIN)/\$(BCL)"
+	second_target="\$(BIN)/\$(BCL)"
+
 	install_prereqs=" install_library"
 	uninstall_prereqs=" uninstall_library"
 	install_man_prereqs=" install_bcl_manpage"
 	uninstall_man_prereqs=" uninstall_bcl_manpage"
+
+	test_target="	\$(BIN)/\$(BCL)"
+	test_prereq=" \$(BIN)/\$(BCL)"
 
 elif [ "$bc_only" -eq 1 ]; then
 
@@ -1744,6 +1755,8 @@ contents=$(replace "$contents" "PROBLEMATIC_TESTS" "$problematic_tests")
 contents=$(replace "$contents" "EXECUTABLES" "$executables")
 contents=$(replace "$contents" "MAIN_EXEC" "$main_exec")
 contents=$(replace "$contents" "EXEC" "$executable")
+contents=$(replace "$contents" "TEST_TARGET" "$test_target")
+contents=$(replace "$contents" "TEST_PREREQ" "$test_prereq")
 
 contents=$(replace "$contents" "KARATSUBA" "$karatsuba")
 

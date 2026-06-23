@@ -267,6 +267,9 @@ $(DC_HELP_C): $(GEN_EXEC) $(DC_HELP)
 $(DC_HELP_O): $(DC_HELP_C)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
+$(BIN)/bcl.o: $(BIN) src $(HEADERS) $(EXTRA_MATH_HEADERS) $(BC_HEADERS) $(DC_HEADERS) $(LIBRARY_HEADERS) ./tests/bcl.c
+	$(CC) $(CFLAGS) -o $(BIN)/bcl.o -c ./tests/bcl.c
+
 $(BIN):
 	$(MKDIR) -p $(BIN)
 
@@ -330,9 +333,8 @@ clean_config: clean clean_benchmarks
 	@$(RM) -f compile_commands.json
 	@$(RM) -f $(BCL_PC)
 
-test:
-	@if [ $(BC_ENABLED) -ne 0 ]; then $(TESTSDIR)/all.sh bc $(BC_ENABLE_EXTRA_MATH) 1 $(GENERATE_TESTS) $(PROBLEMATIC_TESTS) $(BC_EXEC); fi
-	@if [ $(DC_ENABLED) -ne 0 ]; then $(TESTSDIR)/all.sh dc $(BC_ENABLE_EXTRA_MATH) 1 $(GENERATE_TESTS) $(PROBLEMATIC_TESTS) $(DC_EXEC); fi
+test: %%TEST_PREREQ%%
+%%TEST_TARGET%%
 
 test_serial:
 	@if [ $(BC_ENABLED) -ne 0 ]; then $(TESTSDIR)/all.sh -n bc $(BC_ENABLE_EXTRA_MATH) 1 $(GENERATE_TESTS) $(PROBLEMATIC_TESTS) $(BC_EXEC); fi
