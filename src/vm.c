@@ -1801,17 +1801,11 @@ bc_vm_init(void)
 void
 bc_vm_atexit(void)
 {
-#if BC_DEBUG
-#if BC_ENABLE_LIBRARY
 	BcVm* vm = bcl_getspecific();
-#endif // BC_ENABLE_LIBRARY
-#endif // BC_DEBUG
 
 	bc_vm_shutdown();
 
-#if BC_DEBUG
 	bc_vec_free(&vm->jmp_bufs);
-#endif // BC_DEBUG
 }
 #else // BC_ENABLE_LIBRARY
 BcStatus
