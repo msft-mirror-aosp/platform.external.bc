@@ -171,6 +171,10 @@ usage() {
 	printf '    -T, --disable-strip\n'
 	printf '        Disable stripping symbols from the compiled binary or binaries.\n'
 	printf '        Stripping symbols only happens when debug mode is off.\n'
+	printf '    -z, --enable-fuzz-mode\n'
+	printf '        Enable fuzzing mode. THIS IS FOR DEVELOPMENT ONLY.\n'
+	printf '    -Z, --enable-ossfuzz-mode\n'
+	printf '        Enable fuzzing mode for OSS-Fuzz. THIS IS FOR DEVELOPMENT ONLY.\n'
 	printf '    --prefix PREFIX\n'
 	printf '        The prefix to install to. Overrides "$PREFIX" if it exists.\n'
 	printf '        If PREFIX is "/usr", install path will be "/usr/bin".\n'
@@ -567,6 +571,8 @@ predefined_build() {
 			all_locales=0
 			library=0
 			clean=1
+			fuzz=0
+			ossfuzz=0
 			bc_default_banner=0
 			bc_default_sigint_reset=1
 			dc_default_sigint_reset=1
@@ -595,6 +601,8 @@ predefined_build() {
 			all_locales=0
 			library=0
 			clean=1
+			fuzz=0
+			ossfuzz=0
 			bc_default_banner=1
 			bc_default_sigint_reset=1
 			dc_default_sigint_reset=0
@@ -628,6 +636,8 @@ predefined_build() {
 			all_locales=0
 			library=0
 			clean=1
+			fuzz=0
+			ossfuzz=0
 			bc_default_banner=1
 			bc_default_sigint_reset=1
 			dc_default_sigint_reset=1
@@ -661,6 +671,8 @@ predefined_build() {
 			all_locales=0
 			library=0
 			clean=1
+			fuzz=0
+			ossfuzz=0
 			bc_default_banner=1
 			bc_default_sigint_reset=1
 			dc_default_sigint_reset=1
@@ -700,6 +712,8 @@ all_locales=0
 library=0
 clean=1
 problematic_tests=1
+fuzz=0
+ossfuzz=0
 
 # The empty strings are because they depend on TTY mode. If they are directly
 # set, though, they will be integers. We test for empty strings later.
@@ -718,7 +732,7 @@ dc_default_digit_clamp=0
 # getopts is a POSIX utility, but it cannot handle long options. Thus, the
 # handling of long options is done by hand, and that's the reason that short and
 # long options cannot be mixed.
-while getopts "abBcdDeEfgGhHik:lmMNO:p:PrS:s:T-" opt; do
+while getopts "abBcdDeEfgGhHik:lmMNO:p:PrS:s:TZz-" opt; do
 
 	case "$opt" in
 		a) library=1 ;;
@@ -747,6 +761,8 @@ while getopts "abBcdDeEfgGhHik:lmMNO:p:PrS:s:T-" opt; do
 		S) set_default 0 "$OPTARG" ;;
 		s) set_default 1 "$OPTARG" ;;
 		T) strip_bin=0 ;;
+		Z) ossfuzz=1 ;;
+		z) fuzz=1 ;;
 		-)
 			arg="$1"
 			arg="${arg#--}"
@@ -869,6 +885,8 @@ while getopts "abBcdDeEfgGhHik:lmMNO:p:PrS:s:T-" opt; do
 				enable-editline) hist_impl="editline" ;;
 				enable-readline) hist_impl="readline" ;;
 				enable-internal-history) hist_impl="internal" ;;
+				enable-fuzz) fuzz=1 ;;
+				enable-oss-fuzz) ossfuzz=1 ;;
 				install-all-locales) all_locales=1 ;;
 				memcheck) memcheck=1 ;;
 				help* | bc-only* | dc-only* | debug*)
@@ -928,6 +946,10 @@ esac
 
 if [ "$karatsuba_len" -lt 16 ]; then
 	usage "KARATSUBA_LEN is less than 16"
+fi
+
+if [ "$ossfuzz" -ne 0 ] && [ "$memcheck" -eq 0 ]; then
+	usage "Can only enable OSSFUZZ when MEMCHECK is enabled"
 fi
 
 set -e
@@ -1086,6 +1108,41 @@ elif [ "$dc_only" -eq 1 ]; then
 	uninstall_prereqs=" uninstall_dc"
 	uninstall_man_prereqs=" uninstall_dc_manpage"
 
+elif [ "$ossfuzz" -eq 1 ]; then
+
+	if [ "$bc_only" -ne 0 ] || [ "$dc_only" -ne 0 ]; then
+		usage "An OSS-Fuzz build must build both fuzzers."
+	fi
+
+	bc=1
+	dc=1
+
+	executables="bc_fuzzer and dc_fuzzer"
+
+	karatsuba="@\$(KARATSUBA) 30 0 \$(BC_EXEC)"
+	karatsuba_test="@\$(KARATSUBA) 1 100 \$(BC_EXEC)"
+
+	if [ "$library" -eq 0 ]; then
+		install_prereqs=" install_execs"
+		install_man_prereqs=" install_bc_manpage install_dc_manpage"
+		uninstall_prereqs=" uninstall_bc uninstall_dc"
+		uninstall_man_prereqs=" uninstall_bc_manpage uninstall_dc_manpage"
+	else
+		install_prereqs=" install_library install_bcl_header"
+		install_man_prereqs=" install_bcl_manpage"
+		uninstall_prereqs=" uninstall_library uninstall_bcl_header"
+		uninstall_man_prereqs=" uninstall_bcl_manpage"
+		tests="test_library"
+	fi
+
+	second_target_prereqs="src/bc_fuzzer.o $default_target_prereqs"
+	default_target_prereqs="\$(BC_FUZZER) src/dc_fuzzer.o $default_target_prereqs"
+	default_target_cmd="\$(CC) \$(CFLAGS) src/dc_fuzzer.o \$(LIB_FUZZING_ENGINE) \$(OBJS) \$(LDFLAGS) -o \$(DC_FUZZER) \&\& ln -sf ./dc_fuzzer_c \$(DC_FUZZER_C)"
+	second_target_cmd="\$(CC) \$(CFLAGS) src/bc_fuzzer.o \$(LIB_FUZZING_ENGINE) \$(OBJS) \$(LDFLAGS) -o \$(BC_FUZZER) \&\& ln -sf ./bc_fuzzer_c \$(BC_FUZZER_C)"
+
+	default_target="\$(DC_FUZZER) \$(DC_FUZZER_C)"
+	second_target="\$(BC_FUZZER) \$(BC_FUZZER_C)"
+
 else
 
 	bc=1
@@ -1111,6 +1168,18 @@ else
 	default_target_prereqs="$second_target"
 	default_target_cmd="\$(LINK) \$(BIN) \$(EXEC_PREFIX)\$(DC)"
 
+fi
+
+if [ "$fuzz" -ne 0 ] && [ "$ossfuzz" -ne 0 ]; then
+	usage "Fuzzing mode and OSS-Fuzz mode are mutually exclusive"
+fi
+
+# We need specific stuff for fuzzing.
+if [ "$fuzz" -ne 0 ] || [ "$ossfuzz" -ne 0 ]; then
+	debug=1
+	hist=0
+	nls=0
+	optimization="3"
 fi
 
 # This sets some necessary things for debug mode.
@@ -1543,6 +1612,14 @@ if [ "$library" -ne 0 ]; then
 
 	fi
 
+elif [ "$ossfuzz" -ne 0 ]; then
+
+	unneeded="$unneeded library.c main.c"
+
+	PC_PATH=""
+	pkg_config_install=""
+	pkg_config_uninstall=""
+
 else
 
 	unneeded="$unneeded library.c"
@@ -1702,6 +1779,8 @@ contents=$(replace "$contents" "EXTRA_MATH" "$extra_math")
 contents=$(replace "$contents" "NLS" "$nls")
 
 contents=$(replace "$contents" "BC_ENABLE_MEMCHECK" "$memcheck")
+contents=$(replace "$contents" "BC_ENABLE_OSSFUZZ" "$ossfuzz")
+contents=$(replace "$contents" "LIB_FUZZING_ENGINE" "$LIB_FUZZING_ENGINE")
 
 contents=$(replace "$contents" "BC_LIB_O" "$bc_lib")
 contents=$(replace "$contents" "BC_HELP_O" "$bc_help")
