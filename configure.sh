@@ -1044,7 +1044,7 @@ second_target_cmd="$default_target_cmd"
 second_target="\$(BC_EXEC)"
 
 test_target="	@if [ \$(BC_ENABLED) -ne 0 ]; then \$(TESTSDIR)/all.sh bc \$(BC_ENABLE_EXTRA_MATH) 1 \$(GENERATE_TESTS) \$(PROBLEMATIC_TESTS) \$(BC_EXEC); fi;"
-test_target="$test_target @if [ \$(DC_ENABLED) -ne 0 ]; then \$(TESTSDIR)/all.sh dc \$(BC_ENABLE_EXTRA_MATH) 1 \$(GENERATE_TESTS) \$(PROBLEMATIC_TESTS) \$(DC_EXEC); fi"
+test_target="$test_target if [ \$(DC_ENABLED) -ne 0 ]; then \$(TESTSDIR)/all.sh dc \$(BC_ENABLE_EXTRA_MATH) 1 \$(GENERATE_TESTS) \$(PROBLEMATIC_TESTS) \$(DC_EXEC); fi"
 test_prereq=""
 
 # This if/else if chain is for setting the defaults that change based on whether
