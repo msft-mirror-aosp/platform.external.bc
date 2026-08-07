@@ -311,6 +311,7 @@ clean:%%CLEAN_PREREQS%%
 	@$(RM) -f src/*.tmp gen/*.tmp
 	@$(RM) -f $(OBJ)
 	@$(RM) -f $(BC_EXEC)
+	@$(RM) -f src/bc_fuzzer.o src/dc_fuzzer.o
 	@$(RM) -f $(DC_EXEC)
 	@$(RM) -fr $(BIN)
 	@$(RM) -f $(BC_LIB_C) $(BC_LIB_O)
