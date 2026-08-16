@@ -30,6 +30,13 @@ existed in.
 
   The first version without this bug is `6.7.6`.
 
+* In versions `3.2.0` until `7.1.0` (inclusive), it was possible to call
+  `free()` with a garbage pointer in `bcl` when trying to parse a non-number.
+
+  The first version without this bug is `7.2.0`.
+
+  This bug was [found by `shuang886` on GitHub][1].
+
 * In versions `5.0.0` until `6.0.4` (inclusive) of `bc`, there is an
   out-of-bounds access if a non-local (non-`auto`) variable is set to a string
   with `asciify()`, then the function is redefined with a use of the same
@@ -63,3 +70,5 @@ existed in.
   use-after-free if `bcl_init()` fails.
 
   The first version without this bug is `6.2.5`.
+
+[1]: https://github.com/gavinhoward/bc/issues/95
